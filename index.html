@@ -1,0 +1,2239 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier ACMG</title>
+<meta name="description" content="Classification ACMG/AMP de variants germinaux avec propositions automatiques (VEP, gnomAD, ClinVar, MobiDetails), prédiction du NMD et arbre PVS1.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f7a57'/%3E%3Cpath d='M9 23 L16 8 L23 23' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M12 18 H20' stroke='%23ff9442' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef2f0; --surface:#ffffff; --surface2:#f6f8f7; --ink:#12201c; --muted:#5b6d68; --faint:#8a9a95; --line:#dbe3e0;
+  --brand:#0f7a57; --brand-ink:#ffffff; --teal:#0e8a8c; --orange:#d9640f; --accent-soft:#e3f3ec;
+  --pVS:#b3261e; --pS:#d4520f; --pM:#e98a00; --pP:#e9b13a;
+  --bSA:#065f5b; --bS:#0e8a8c; --bM:#3aa7a1; --bP:#7cc9c0;
+  --cP:#b3261e; --cLP:#d4520f; --cVUS:#6b7a76; --cLB:#2b9c96; --cB:#065f5b;
+  --ok:#0f7a57; --warn:#b86e00; --err:#b3261e;
+  --t-pVS:#fff; --t-pS:#fff; --t-pM:#2a1800; --t-pP:#2a1d00; --t-bSA:#fff; --t-bS:#fff; --t-bM:#04201e; --t-bP:#04201e;
+  --shadow:0 1px 2px rgba(16,32,28,.06),0 4px 16px rgba(16,32,28,.05);
+  --r:12px; --font:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --head:'Space Grotesk','IBM Plex Sans',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1110; --surface:#141b1a; --surface2:#1a2321; --ink:#e4ece9; --muted:#97a8a3; --faint:#6c7d78; --line:#26322f;
+  --brand:#33c48c; --brand-ink:#05140e; --teal:#3cc4c6; --orange:#ff9442; --accent-soft:#16302a;
+  --pVS:#ff5a4f; --pS:#ff7a3a; --pM:#ffa53a; --pP:#f3c45a; --bSA:#1fb5ad; --bS:#3cc4c6; --bM:#5fd0c8; --bP:#94ddd5;
+  --cP:#ff5a4f; --cLP:#ff8a3d; --cVUS:#9aa9a5; --cLB:#5fd0c8; --cB:#1fb5ad; --ok:#33c48c; --warn:#ffb340; --err:#ff5a4f;
+  --t-pVS:#160403; --t-pS:#160603; --t-pM:#1a0f00; --t-pP:#1a1300; --t-bSA:#021614; --t-bS:#021614; --t-bM:#021614; --t-bP:#021614;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.25);
+}}
+:root[data-theme="dark"]{
+  --bg:#0c1110; --surface:#141b1a; --surface2:#1a2321; --ink:#e4ece9; --muted:#97a8a3; --faint:#6c7d78; --line:#26322f;
+  --brand:#33c48c; --brand-ink:#05140e; --teal:#3cc4c6; --orange:#ff9442; --accent-soft:#16302a;
+  --pVS:#ff5a4f; --pS:#ff7a3a; --pM:#ffa53a; --pP:#f3c45a; --bSA:#1fb5ad; --bS:#3cc4c6; --bM:#5fd0c8; --bP:#94ddd5;
+  --cP:#ff5a4f; --cLP:#ff8a3d; --cVUS:#9aa9a5; --cLB:#5fd0c8; --cB:#1fb5ad; --ok:#33c48c; --warn:#ffb340; --err:#ff5a4f;
+  --t-pVS:#160403; --t-pS:#160603; --t-pM:#1a0f00; --t-pP:#1a1300; --t-bSA:#021614; --t-bS:#021614; --t-bM:#021614; --t-bP:#021614;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+html{font-size:15px}
+body{margin:0;overflow-x:clip;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--teal)}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4{font-family:var(--head);letter-spacing:-.01em;margin:0}
+.mono{font-family:var(--mono);font-size:.92em}
+.muted{color:var(--muted)} .small{font-size:.86rem} .tiny{font-size:.78rem}
+.wrap{max-width:1360px;margin:0 auto;padding:0 20px}
+
+/* ---- Top bar ---- */
+.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:14px;height:58px}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.brand svg{flex:none}
+.brand b{font-family:var(--head);font-size:1.12rem;letter-spacing:-.02em}
+.brand span{color:var(--muted);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:9px;height:36px;padding:0 12px;display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:.9rem}
+.iconbtn:hover{border-color:var(--brand)}
+.iconbtn svg{width:16px;height:16px}
+
+/* ---- Query ---- */
+.query{padding:22px 0 8px}
+.qrow{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
+.qinput{flex:1 1 420px;display:flex;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:0 14px;box-shadow:var(--shadow)}
+.qinput:focus-within{border-color:var(--brand)}
+.qinput input{flex:1;border:0;outline:0;background:transparent;height:50px;font-family:var(--mono);font-size:1rem;min-width:0}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:0 12px;border-radius:8px;cursor:pointer;font-weight:500;color:var(--muted);min-height:34px}
+.seg button.on{background:var(--ink);color:var(--surface)}
+.seg.sm button{padding:0 9px;min-height:28px;font-size:.85rem}
+.btn{border:0;background:var(--brand);color:var(--brand-ink);font-weight:600;border-radius:12px;padding:0 22px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn:disabled{opacity:.6;cursor:progress}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:500}
+.btn.sm{min-height:32px;padding:0 12px;border-radius:9px;font-size:.88rem}
+.modewrap{display:flex;align-items:center;gap:8px}
+.modewrap label{font-size:.8rem;color:var(--muted)}
+.examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 11px;font-size:.82rem;cursor:pointer}
+.chip:hover{border-color:var(--brand)}
+.sources{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.src{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px 9px}
+.src i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.src.loading i{background:var(--warn);animation:pulse 1s infinite}
+.src.ok i{background:var(--ok)} .src.err i{background:var(--err)} .src.skip i{background:var(--faint)}
+@keyframes pulse{50%{opacity:.3}}
+.alert{border-radius:10px;padding:10px 14px;font-size:.9rem;margin-top:10px;border:1px solid}
+.alert.err{border-color:color-mix(in srgb,var(--err) 40%,transparent);background:color-mix(in srgb,var(--err) 8%,transparent)}
+.alert.info{border-color:color-mix(in srgb,var(--teal) 40%,transparent);background:color-mix(in srgb,var(--teal) 7%,transparent)}
+.alert.warn{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+
+/* ---- Layout ---- */
+.layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;padding:14px 0 60px;align-items:start}
+.side{position:sticky;top:72px;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 84px);overflow:auto;padding-bottom:4px}
+.main{display:flex;flex-direction:column;gap:18px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card>.hd{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.card>.hd h2{font-size:1.02rem}
+.card>.hd .sp{margin-left:auto;min-width:0;max-width:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.card>.bd{padding:16px 18px}
+.kicker{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+
+/* ---- Verdict ---- */
+.verdict{padding:18px}
+.vclass{display:flex;align-items:baseline;gap:10px;margin:6px 0 2px}
+.vclass .big{font-family:var(--head);font-size:2rem;font-weight:700;line-height:1.1}
+.vsub{color:var(--muted);font-size:.86rem}
+.gauge{margin:16px 0 6px;position:relative;height:34px}
+.gauge .bar{position:absolute;inset:12px 0 auto 0;height:10px;border-radius:6px;background:linear-gradient(90deg,var(--cB) 0%,var(--cB) 13%,var(--cLB) 13%,var(--cLB) 50%,var(--cVUS) 50%,var(--cVUS) 72%,var(--cLP) 72%,var(--cLP) 86%,var(--cP) 86%)}
+.gauge .needle{position:absolute;top:2px;width:3px;height:30px;background:var(--ink);border-radius:2px;transition:left .35s}
+.gauge .ticks{position:absolute;top:26px;left:0;right:0;font-size:.68rem;color:var(--muted);font-family:var(--mono)}
+.gauge .ticks span{position:absolute;transform:translateX(-50%)}
+.vrow{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;padding:6px 0;border-top:1px dashed var(--line)}
+.vrow b{font-family:var(--head)}
+.applied{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.tag{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:.76rem;font-weight:600;border-radius:6px;padding:2px 7px;color:#fff;cursor:pointer}
+.tag.pending{background:transparent!important;color:var(--muted);border:1px dashed var(--faint)}
+.warnings{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.wline{font-size:.82rem;display:flex;gap:7px;align-items:flex-start;line-height:1.35}
+.wline::before{content:"";flex:none;width:6px;height:6px;margin-top:6px;border-radius:50%;background:var(--warn)}
+.wline.info::before{background:var(--teal)}
+.disclaimer{font-size:.76rem;color:var(--muted);line-height:1.4}
+
+/* ---- Variant ---- */
+.vhead{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}
+.vhead .gene{font-family:var(--head);font-size:1.6rem;font-weight:700;font-style:italic}
+.vhead .hg{font-family:var(--mono);font-size:1rem}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:14px}
+.fact{background:var(--surface2);border-radius:9px;padding:9px 11px}
+.fact .k{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.fact .v{font-family:var(--mono);font-size:.9rem;word-break:break-word}
+.links{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.links a{font-size:.82rem;text-decoration:none;border:1px solid var(--line);border-radius:7px;padding:3px 9px;color:var(--ink)}
+.links a:hover{border-color:var(--teal);color:var(--teal)}
+select.txsel{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:4px 8px;font-family:var(--mono);font-size:.82rem;max-width:100%}
+
+/* ---- Dashboard matrix ---- */
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.filters input{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 10px;min-width:160px;font-size:.88rem}
+.fchip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:3px 10px;font-size:.78rem;cursor:pointer;color:var(--muted)}
+.fchip.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.matrix{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) 14px repeat(3,minmax(0,1fr));gap:8px}
+.mcol{display:flex;flex-direction:column;gap:7px;min-width:0}
+.mcolhd{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;border-radius:8px;color:#fff;display:flex;justify-content:space-between}
+.mgap{border-left:2px dashed var(--line);margin:0 auto}
+.side-label{grid-column:1/5;font-family:var(--head);font-weight:600;font-size:.9rem;color:var(--pS)}
+.side-label.b{grid-column:6/9;color:var(--bS)}
+.cc{position:relative;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 9px 8px 10px;cursor:pointer;transition:transform .12s,border-color .12s,background .12s;min-width:0}
+.cc:hover{border-color:var(--faint);transform:translateY(-1px)}
+.cc .top1{display:flex;align-items:center;gap:6px}
+.cc .code{font-family:var(--mono);font-weight:700;font-size:.86rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cc .lbl{font-size:.76rem;color:var(--muted);line-height:1.3;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cc .sw{margin-left:auto;width:30px;height:17px;border-radius:9px;background:var(--line);position:relative;flex:none;border:0;cursor:pointer;padding:0}
+.cc .sw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.cc.on .sw::after{left:15px}
+.cc.on{border-color:transparent}
+.cc.on .lbl{color:inherit;opacity:.85}
+.cc.on .sw{background:rgba(0,0,0,.28)}
+.cc .badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
+.bdg{font-size:.66rem;font-weight:700;border-radius:4px;padding:0 5px;line-height:1.5;background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+.cc.on .bdg{background:rgba(0,0,0,.16);color:inherit;border-color:transparent}
+.bdg.auto{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
+.bdg.pend{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,transparent);border-style:dashed}
+.bdg.dep{color:var(--faint)}
+.cc.dim{opacity:.32}
+.cc.hasprop:not(.on){border-style:dashed;border-color:var(--brand)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-top:12px}
+.legend span{display:inline-flex;gap:5px;align-items:center}
+
+/* ---- LoF / NMD ---- */
+.lofgrid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px}
+.nmdsvg{width:100%;height:auto;display:block}
+.rules{list-style:none;padding:0;margin:10px 0 0;display:flex;flex-direction:column;gap:5px}
+.rules li{display:flex;gap:8px;font-size:.84rem;align-items:baseline}
+.rules li .dot{flex:none;width:16px;height:16px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;border:1px solid var(--line);color:var(--faint);transform:translateY(3px)}
+.rules li.hit .dot{background:var(--brand);color:var(--brand-ink);border-color:transparent}
+.rules li.hit.partial .dot,.rules li.hit.border .dot{background:var(--warn);color:#fff}
+.nmdverdict{display:inline-flex;align-items:center;gap:8px;font-family:var(--head);font-weight:600;padding:6px 12px;border-radius:9px;margin:4px 0 2px}
+.nmdverdict.nmd{background:color-mix(in srgb,var(--pS) 14%,transparent);color:var(--pS)}
+.nmdverdict.escape{background:color-mix(in srgb,var(--bS) 14%,transparent);color:var(--bS)}
+.nmdverdict.uncertain{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}
+.tree{display:flex;flex-direction:column;gap:0}
+.tnode{display:grid;grid-template-columns:22px 1fr;gap:8px;position:relative;padding-bottom:10px}
+.tnode::before{content:"";position:absolute;left:10px;top:20px;bottom:0;width:2px;background:var(--line)}
+.tnode:last-child::before{display:none}
+.tnode .n{width:22px;height:22px;border-radius:50%;background:var(--surface2);border:1.5px solid var(--line);font-size:.7rem;display:flex;align-items:center;justify-content:center;font-weight:700;z-index:1}
+.tnode .q{font-size:.86rem}
+.tnode .a{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:3px}
+.ans{font-family:var(--head);font-weight:600;font-size:.86rem}
+.srcb{font-size:.68rem;border-radius:4px;padding:0 5px;border:1px solid var(--line);color:var(--muted)}
+.srcb.auto{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 45%,transparent)}
+.tres{margin-top:4px;padding:12px 14px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tres .r{font-family:var(--mono);font-weight:700;font-size:1.05rem}
+.qs{display:flex;flex-direction:column;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.qline{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:.86rem}
+.qline .ql{flex:1 1 220px}
+
+/* ---- Evidence ---- */
+.evgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.ev h3{font-size:.92rem;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+table.kv{width:100%;border-collapse:collapse;font-size:.85rem}
+table.kv td{padding:5px 0;border-bottom:1px solid var(--line);vertical-align:top}
+table.kv td:first-child{color:var(--muted);padding-right:10px;width:46%}
+table.kv td:last-child{font-family:var(--mono);font-size:.82rem;text-align:right;word-break:break-word}
+table.tb{width:100%;min-width:340px;border-collapse:collapse;font-size:.8rem}
+table.tb th{text-align:left;font-weight:600;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;padding:5px 6px;border-bottom:1px solid var(--line)}
+table.tb td{padding:5px 6px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:.78rem;vertical-align:top}
+.pill{display:inline-block;border-radius:5px;padding:0 6px;font-size:.72rem;font-weight:700;color:#fff;font-family:var(--font)}
+.scorebar{height:6px;border-radius:4px;background:var(--surface2);position:relative;margin-top:4px;overflow:hidden}
+.scorebar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+.empty{color:var(--muted);font-size:.86rem;padding:6px 0}
+.export{display:flex;gap:8px;flex-wrap:wrap}
+textarea.note{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);padding:8px;font-size:.88rem;resize:vertical}
+
+/* ---- Drawer / modal ---- */
+.scrim{position:fixed;inset:0;background:rgba(5,12,10,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100vw);background:var(--surface);z-index:50;transform:translateX(102%);transition:transform .25s ease;display:flex;flex-direction:column;border-left:1px solid var(--line);box-shadow:-10px 0 40px rgba(0,0,0,.18)}
+.drawer{visibility:hidden}
+.drawer.on{transform:none;visibility:visible}
+.drawer .dh{padding:18px 20px 14px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.drawer .dh .x{margin-left:auto}
+.drawer .db{padding:16px 20px 40px;overflow:auto;flex:1}
+.dcode{font-family:var(--mono);font-weight:700;font-size:1.3rem;padding:4px 10px;border-radius:8px;color:#fff;flex:none}
+.dsec{margin-top:18px}
+.dsec h4{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px}
+.dsec p{margin:0;font-size:.92rem}
+.forthis{background:var(--accent-soft);border-radius:10px;padding:12px 14px;font-size:.9rem}
+.ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:.9rem}
+.toggle input{width:18px;height:18px;accent-color:var(--brand)}
+.calc{border:1px dashed var(--line);border-radius:10px;padding:12px 14px;margin-top:8px}
+.calc .row{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.86rem;padding:3px 0}
+.calc input[type=number],.set input[type=number],.set input[type=text],.set input[type=password]{width:110px;border:1px solid var(--line);border-radius:7px;background:var(--surface2);padding:4px 8px;font-family:var(--mono);font-size:.85rem}
+.calc .out{margin-top:8px;font-weight:600;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.guide h3{font-size:1rem;margin:22px 0 8px}
+.guide p,.guide li{font-size:.9rem}
+.guide table{border-collapse:collapse;width:100%;font-size:.84rem;margin:8px 0}
+.guide td,.guide th{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;vertical-align:top}
+.set .row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.88rem}
+.set .row .lab{flex:1}
+.set h3{font-size:.95rem;margin:20px 0 4px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--surface);padding:9px 16px;border-radius:10px;font-size:.88rem;opacity:0;transition:.2s;z-index:60;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.rschoice{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+
+@media (max-width:1100px){
+  .layout{grid-template-columns:1fr}
+  .side{position:static;max-height:none}
+  .lofgrid{grid-template-columns:1fr}
+}
+@media (max-width:820px){
+  .matrix{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mgap,.side-label{display:none}
+  .mcol{grid-column:auto}
+  .brand span{display:none}
+  .iconbtn .t{display:none}
+}
+@media (max-width:520px){
+  .wrap{padding:0 16px}
+  .matrix{grid-template-columns:1fr}
+  .vclass .big{font-size:1.6rem}
+}
+@media print{
+  .top,.query,.filters,.export,.drawer,.scrim,.iconbtn,.sw,#lofQs,.legend{display:none!important}
+  body{background:#fff;color:#000}
+  .layout{grid-template-columns:1fr}
+  .side{position:static;max-height:none}
+  .card{box-shadow:none;break-inside:avoid}
+  .cc:not(.on){display:none}
+}
+
+.tscroll{overflow-x:auto;max-width:100%}
+
+/* Critères à remplir soi-même */
+.cc.fill-man:not(.on){background:color-mix(in srgb,var(--teal) 7%,var(--surface));border-style:dashed;border-color:color-mix(in srgb,var(--teal) 35%,var(--line))}
+.cc.fill-semi:not(.on){background:linear-gradient(135deg,color-mix(in srgb,var(--teal) 7%,var(--surface)) 50%,var(--surface) 50%);border-color:color-mix(in srgb,var(--teal) 30%,var(--line))}
+.cc.fill-dep:not(.on){opacity:.6}
+.cc .fm{font-size:.78rem;color:var(--teal);line-height:1;flex:none}
+.cc.on .fm{color:inherit;opacity:.7}
+.fchip[data-cat="mine"]{border-color:color-mix(in srgb,var(--teal) 45%,var(--line));color:var(--teal)}
+.fchip[data-cat="mine"].on{background:var(--teal);border-color:var(--teal);color:var(--surface)}
+.lgsw{display:inline-block;width:22px;height:14px;border-radius:4px;border:1px solid var(--line);vertical-align:-2px}
+
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--brand)"/><path d="M9 23 L16 8 L23 23" stroke="var(--brand-ink)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 18 H20" stroke="var(--orange)" stroke-width="3" stroke-linecap="round"/></svg>
+    <b>Atelier ACMG</b><span>Variants germinaux · ACMG/AMP 2015 + ClinGen SVI</span>
+  </div>
+  <button class="iconbtn" id="guideBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5V21h16"/></svg><span class="t">Guide</span></button>
+  <button class="iconbtn" id="setBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="t">Paramètres</span></button>
+  <button class="iconbtn" id="themeBtn" aria-label="Basculer le thème"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+</div></header>
+
+<section class="query"><div class="wrap">
+  <form id="qform" class="qrow" autocomplete="off">
+    <label class="qinput"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="margin-right:10px"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" spellcheck="false" placeholder="NM_000546.6:c.743G>A · 17-7674220-C-T · rs11540652" aria-label="Variant"></label>
+    <div class="modewrap"><label>Transmission</label>
+      <div class="seg" id="modeSeg"><button type="button" data-m="AD" title="Autosomique dominant">AD</button><button type="button" data-m="AR" title="Autosomique récessif">AR</button><button type="button" data-m="XL" title="Lié à l'X">XL</button><button type="button" data-m="?" title="Inconnu">?</button></div></div>
+    <button class="btn" id="go" type="submit">Analyser</button>
+  </form>
+  <div class="examples" id="examples"><span class="tiny muted">Exemples :</span>
+    <button class="chip mono" data-ex="NM_000546.6:c.743G>A" data-mode="AD">TP53 faux-sens</button>
+    <button class="chip mono" data-ex="NM_000546.6:c.1024C>T" data-mode="AD">TP53 non-sens</button>
+    <button class="chip mono" data-ex="NM_000546.6:c.374del" data-mode="AD">TP53 frameshift</button>
+    <button class="chip mono" data-ex="NM_000546.6:c.375+1G>A" data-mode="AD">TP53 site donneur</button>
+    <button class="chip mono" data-ex="NM_000249.4:c.1A>G" data-mode="AD">MLH1 start</button>
+    <button class="chip mono" data-ex="6-26092913-G-A" data-mode="AR">HFE C282Y (BA1)</button>
+  </div>
+  <div id="rschoice" class="rschoice"></div>
+  <div id="qerr"></div>
+  <div class="sources" id="sources"></div>
+</div></section>
+
+<div class="wrap layout">
+  <aside class="side">
+    <div class="card verdict" id="verdict"></div>
+    <div class="card"><div class="bd">
+      <div class="kicker" style="margin-bottom:8px">Exporter</div>
+      <div class="export"><button class="btn ghost sm" id="copyBtn">Copier le résumé</button><button class="btn ghost sm" id="txtBtn">.txt</button><button class="btn ghost sm" id="jsonBtn">.json</button><button class="btn ghost sm" id="printBtn">Imprimer / PDF</button></div>
+    </div></div>
+  </aside>
+  <main class="main">
+    <section class="card" id="variantCard" style="display:none"></section>
+    <section class="card" id="dash">
+      <div class="hd"><h2>Tableau des 28 critères</h2>
+        <div class="sp filters"><input id="critSearch" type="search" placeholder="Filtrer (code, mot-clé)…" aria-label="Filtrer les critères"></div>
+      </div>
+      <div class="bd">
+        <div class="filters" id="catChips" style="margin-bottom:12px"></div>
+        <div class="matrix" id="matrix"></div>
+        <div class="legend">
+          <span><span class="lgsw" style="background:var(--surface)"></span> rempli par l'outil</span>
+          <span><span class="lgsw" style="background:linear-gradient(135deg,color-mix(in srgb,var(--teal) 7%,var(--surface)) 50%,var(--surface) 50%)"></span> <svg width="11" height="11" viewBox="0 0 12 12" style="color:var(--teal);vertical-align:-1px"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 1a5 5 0 0 0 0 10z" fill="currentColor"/></svg> semi-auto (indices, décision à vous)</span>
+          <span><span class="lgsw" style="background:color-mix(in srgb,var(--teal) 7%,var(--surface));border-style:dashed"></span> ✎ à remplir par vous</span>
+          <span><span class="bdg auto">auto</span> proposé à partir des bases</span>
+          <span><span class="bdg pend">à confirmer</span> dépend d'une de vos réponses</span>
+          <span><span class="bdg">manuel</span> modifié par vous</span>
+          <span>Cliquez sur une carte pour l'explication et la force ; l'interrupteur applique ou retire le critère.</span>
+        </div>
+      </div>
+    </section>
+    <section class="card" id="lofCard" style="display:none"></section>
+    <section class="card" id="evidence" style="display:none"></section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Détails">
+  <div class="dh"><div id="dTitle" style="display:flex;gap:12px;align-items:flex-start"></div><button class="iconbtn x" id="dClose" aria-label="Fermer">✕</button></div>
+  <div class="db" id="dBody"></div>
+</aside>
+<div class="toast" id="toast"></div>
+
+<template id="guideTpl"><div class="guide">
+  <p>Chaque critère a une <b>direction</b> (pathogène P, bénin B) et une <b>force</b>. ClinGen autorise à moduler la force d'un critère (ex. <span class="mono">PP3_Strong</span>, <span class="mono">PM2_Supporting</span>) quand les preuves le justifient.</p>
+  <h3>1. Système de points (Tavtigian et al. 2020)</h3>
+  <p>Les forces correspondent à des rapports de vraisemblance (modèle bayésien) et s'additionnent :</p>
+  <table><tr><th>Force</th><th>Pathogène</th><th>Bénin</th></tr><tr><td>Support</td><td>+1</td><td>−1</td></tr><tr><td>Modéré</td><td>+2</td><td>−2</td></tr><tr><td>Fort</td><td>+4</td><td>−4</td></tr><tr><td>Très fort</td><td>+8</td><td>−8</td></tr></table>
+  <table><tr><th>Total</th><th>Classe</th></tr><tr><td>≥ 10</td><td>Pathogène</td></tr><tr><td>6 à 9</td><td>Probablement pathogène</td></tr><tr><td>0 à 5</td><td>VUS (basse 0–1 · moyenne 2–3 · haute 4–5)</td></tr><tr><td>−1 à −6</td><td>Probablement bénin</td></tr><tr><td>≤ −7</td><td>Bénin (BA1 = bénin d'emblée)</td></tr></table>
+  <p class="small muted">Plusieurs VCEP fixent le seuil « probablement bénin » à −2, pour exiger au moins deux preuves bénignes. Le système de points est la base de la future version 4 des recommandations ACMG/AMP.</p>
+  <h3>2. Règles de combinaison ACMG 2015</h3>
+  <table><tr><th>Classe</th><th>Combinaisons</th></tr>
+  <tr><td>Pathogène</td><td>1 Très fort + (≥ 1 Fort, ou ≥ 2 Modérés, ou 1 Modéré + 1 Support, ou ≥ 2 Support) · ≥ 2 Forts · 1 Fort + (≥ 3 Modérés, ou 2 Modérés + ≥ 2 Support, ou 1 Modéré + ≥ 4 Support)</td></tr>
+  <tr><td>Prob. pathogène</td><td>1 Très fort + 1 Modéré · 1 Fort + 1–2 Modérés · 1 Fort + ≥ 2 Support · ≥ 3 Modérés · 2 Modérés + ≥ 2 Support · 1 Modéré + ≥ 4 Support · <i>(SVI 2020)</i> 1 Très fort + 1 Support</td></tr>
+  <tr><td>Bénin</td><td>BA1 · ≥ 2 Forts bénins</td></tr>
+  <tr><td>Prob. bénin</td><td>1 Fort + 1 Support · ≥ 2 Support</td></tr>
+  <tr><td>VUS</td><td>Aucune règle atteinte, ou critères pathogènes et bénins contradictoires</td></tr></table>
+  <h3>3. NMD : quand un PTC échappe-t-il à la dégradation ?</h3>
+  <p>Le NMD est déclenché quand le ribosome s'arrête sur un codon stop prématuré (PTC) en laissant en aval au moins un complexe de jonction d'exons (EJC). Règles utilisées :</p>
+  <ul>
+    <li><b>Dernier exon</b> : aucun EJC en aval, donc échappement (la règle la plus fiable).</li>
+    <li><b>Règle des 50–55 nt</b> : PTC à moins de ~50–55 nt de la dernière jonction exon-exon, donc échappement.</li>
+    <li><b>Start-proximal</b> (~150 premiers nt codants) : échappement partiel possible par réinitiation de la traduction.</li>
+    <li><b>Exon long</b> (> 407 nt) : NMD souvent moins efficace.</li>
+    <li><b>Transcrit sans intron</b> : pas d'EJC, donc échappement.</li>
+  </ul>
+  <p class="small muted">Lindeboom et al. (2016, 2019, modèle NMDetective-B) ont observé que la règle du dernier exon est la plus efficace, suivie de start-proximal, puis de la règle des 50 nt, puis de celle de l'exon long. Ce sont des prédictions, pas des mesures : seule une analyse de l'ARN (allèle-spécifique, RT-PCR avec ou sans inhibiteur du NMD) confirme l'effet.</p>
+  <h3>4. Arbre PVS1 (Abou Tayoun 2018)</h3>
+  <p><b>Non-sens / frameshift :</b> si le NMD est prédit, PVS1 s'applique quand l'exon est présent dans un transcrit pertinent. Si le NMD n'est pas prédit : région critique → PVS1_Strong ; sinon, LoF fréquents ou exon non pertinent → N/A ; sinon, plus de 10 % de la protéine retirée → PVS1_Strong, 10 % ou moins → PVS1_Moderate.</p>
+  <p><b>Sites ±1/2 :</b> on prédit le transcrit anormal (saut d'exon ou site cryptique). Si le cadre est décalé, on applique la même logique que ci-dessus. Si le cadre est conservé : région critique → PVS1_Strong ; sinon, ce sont les mêmes questions qui décident.</p>
+  <p><b>Codon d'initiation :</b> si un autre transcrit fonctionnel utilise un autre start → N/A ; si des variants pathogènes existent en amont de la méthionine alternative → PVS1_Moderate ; sinon PVS1_Supporting.</p>
+  <h3>5. Ce que l'outil automatise… et ce qu'il ne fait pas</h3>
+  <ul>
+    <li><b>Automatique :</b> PM2 / BA1 / BS1 (gnomAD v4), PP3 / BP4 / BP7 (REVEL, SpliceAI), PS1 / PM5 (ClinVar sur le codon), PM4, PVS1 via l'arbre (sauf la question du mécanisme LoF), NMD.</li>
+    <li><b>Manuel :</b> PS2/PM6, PS3/BS3, PS4, PM1, PM3, PP1/BS4, PP2/BP1, PP4, BS2, BP2, BP3, BP5. Calculateurs pour PS2/PM6, PM3 et PP1.</li>
+    <li><b>Limites :</b> le saut d'exon est une hypothèse (les sites cryptiques ne sont pas modélisés) ; les délétions d'exons entiers ne sont pas gérées ; seul GRCh38 est pris en charge ; les spécifications VCEP propres à chaque gène ne sont pas intégrées (lien CSpec fourni) ; gnomAD sous-représente les populations nord-africaines.</li>
+  </ul>
+  <h3>6. Sources de données</h3>
+  <p class="small">Ensembl VEP REST (plugins REVEL, AlphaMissense, SpliceAI, LOEUF) · gnomAD v4 GraphQL · NCBI E-utilities (ClinVar) · MobiDetails (CHU Montpellier) · SpliceAI-lookup (Broad, sur demande). Aucune donnée patient n'est envoyée : seules les coordonnées du variant le sont.</p>
+  <h3>7. Références</h3>
+  <ul class="small">
+    <li>Richards et al. 2015, Genet Med — <a href="https://pubmed.ncbi.nlm.nih.gov/25741868/" target="_blank" rel="noopener">PMID 25741868</a></li>
+    <li>Tavtigian et al. 2020, Hum Mutat (points) — <a href="https://doi.org/10.1002/humu.24088" target="_blank" rel="noopener">doi:10.1002/humu.24088</a></li>
+    <li>Abou Tayoun et al. 2018 (PVS1) — <a href="https://pubmed.ncbi.nlm.nih.gov/30192042/" target="_blank" rel="noopener">PMID 30192042</a></li>
+    <li>Pejaver et al. 2022 (PP3/BP4) — <a href="https://pubmed.ncbi.nlm.nih.gov/36413997/" target="_blank" rel="noopener">PMID 36413997</a></li>
+    <li>Walker et al. 2023 (épissage) — <a href="https://pubmed.ncbi.nlm.nih.gov/37352859/" target="_blank" rel="noopener">PMID 37352859</a></li>
+    <li>ClinGen SVI PM2 (2020) — <a href="https://clinicalgenome.org/site/assets/files/5182/pm2_-_svi_recommendation_-_approved_sept2020.pdf" target="_blank" rel="noopener">PDF</a></li>
+    <li>Ghosh et al. 2018 (BA1) — <a href="https://pubmed.ncbi.nlm.nih.gov/30311383/" target="_blank" rel="noopener">PMID 30311383</a> · Whiffin et al. 2017 (BS1) — <a href="https://pubmed.ncbi.nlm.nih.gov/28518168/" target="_blank" rel="noopener">PMID 28518168</a></li>
+    <li>Lindeboom et al. 2019, Nat Genet (NMDetective) — <a href="https://doi.org/10.1038/s41588-019-0517-5" target="_blank" rel="noopener">doi:10.1038/s41588-019-0517-5</a></li>
+  </ul>
+</div></template>
+
+<script>
+/* ===== CORE : fonctions pures (testables hors navigateur) ===== */
+const CORE = (() => {
+  'use strict';
+  const COMP = { A: 'T', T: 'A', G: 'C', C: 'G', N: 'N' };
+  const revcomp = s => s.toUpperCase().split('').reverse().map(c => COMP[c] || 'N').join('');
+  const BASES = 'TCAG';
+  const AAS = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG';
+  const CODON = {};
+  let k = 0;
+  for (const a of BASES) for (const b of BASES) for (const c of BASES) CODON[a + b + c] = AAS[k++];
+  const AA3 = { A: 'Ala', R: 'Arg', N: 'Asn', D: 'Asp', C: 'Cys', Q: 'Gln', E: 'Glu', G: 'Gly', H: 'His', I: 'Ile', L: 'Leu', K: 'Lys', M: 'Met', F: 'Phe', P: 'Pro', S: 'Ser', T: 'Thr', W: 'Trp', Y: 'Tyr', V: 'Val', '*': 'Ter' };
+
+  /* ---------- Forces & points ---------- */
+  const STRENGTHS = ['SA', 'VS', 'S', 'M', 'P'];
+  const STR_LABEL = { SA: 'Autonome', VS: 'Très fort', S: 'Fort', M: 'Modéré', P: 'Support' };
+  const STR_EN = { SA: 'Stand-alone', VS: 'VeryStrong', S: 'Strong', M: 'Moderate', P: 'Supporting' };
+  const PTS = { VS: 8, S: 4, M: 2, P: 1, SA: 8 };
+
+  // Nom ClinGen d'un critère modulé : PP3_Strong, PM2_Supporting…
+  function critName(code, def, str) {
+    if (!str || str === def) return code;
+    return code + '_' + STR_EN[str];
+  }
+
+  function points(dir, str) {
+    const p = PTS[str] || 0;
+    return dir === 'P' ? p : -p;
+  }
+
+  /* ---------- Classification ACMG 2015 (Richards) + règle SVI PVS1+PP ---------- */
+  function classify2015(applied) {
+    // applied : [{code, dir, str}]
+    const c = { pVS: 0, pS: 0, pM: 0, pP: 0, bSA: 0, bS: 0, bP: 0, bM: 0 };
+    for (const a of applied) {
+      if (a.dir === 'P') c['p' + a.str] = (c['p' + a.str] || 0) + 1;
+      else if (a.str === 'SA') c.bSA++;
+      else if (a.str === 'VS' || a.str === 'S') c.bS++;
+      else if (a.str === 'M') { c.bM++; c.bP++; } // pas de « bénin modéré » en 2015 : compté comme Support
+      else c.bP++;
+    }
+    const { pVS, pS, pM, pP, bSA, bS, bP } = c;
+    const isP = pVS >= 2 ||
+      (pVS >= 1 && (pS >= 1 || pM >= 2 || (pM === 1 && pP >= 1) || pP >= 2)) ||
+      pS >= 2 ||
+      (pS === 1 && (pM >= 3 || (pM >= 2 && pP >= 2) || (pM === 1 && pP >= 4)));
+    const isLP = !isP && (
+      (pVS === 1 && pM === 1) ||
+      (pVS === 1 && pP >= 1) || // SVI 2020 (PM2_Supporting) : 1 Très fort + 1 Support = LP
+      (pS === 1 && pM >= 1 && pM <= 2) ||
+      (pS === 1 && pP >= 2) ||
+      pM >= 3 || (pM === 2 && pP >= 2) || (pM === 1 && pP >= 4));
+    const isB = bSA >= 1 || bS >= 2;
+    const isLB = !isB && ((bS === 1 && bP >= 1) || bP >= 2);
+    const pathSide = isP || isLP, benSide = isB || isLB;
+    let cls = 'VUS', conflict = false, rule = '';
+    if (pathSide && benSide) { cls = 'VUS'; conflict = true; rule = 'Critères pathogènes et bénins contradictoires → VUS'; }
+    else if (isP) { cls = 'P'; rule = describeRule(c, 'P'); }
+    else if (isLP) { cls = 'LP'; rule = describeRule(c, 'LP'); }
+    else if (isB) { cls = 'B'; rule = bSA ? 'BA1 (autonome)' : '≥ 2 critères bénins forts'; }
+    else if (isLB) { cls = 'LB'; rule = bS ? '1 fort + 1 support bénins' : '≥ 2 critères bénins de support'; }
+    else rule = 'Aucune règle de combinaison atteinte';
+    return { cls, conflict, rule, counts: c };
+  }
+
+  function describeRule(c, cls) {
+    const { pVS, pS, pM, pP } = c;
+    if (cls === 'P') {
+      if (pVS >= 2) return '2 Très forts';
+      if (pVS >= 1 && pS >= 1) return '1 Très fort + ≥ 1 Fort';
+      if (pVS >= 1 && pM >= 2) return '1 Très fort + ≥ 2 Modérés';
+      if (pVS >= 1 && pM === 1 && pP >= 1) return '1 Très fort + 1 Modéré + 1 Support';
+      if (pVS >= 1 && pP >= 2) return '1 Très fort + ≥ 2 Support';
+      if (pS >= 2) return '≥ 2 Forts';
+      if (pS === 1 && pM >= 3) return '1 Fort + ≥ 3 Modérés';
+      if (pS === 1 && pM >= 2) return '1 Fort + 2 Modérés + ≥ 2 Support';
+      return '1 Fort + 1 Modéré + ≥ 4 Support';
+    }
+    if (pVS === 1 && pM === 1) return '1 Très fort + 1 Modéré';
+    if (pVS === 1 && pP >= 1) return '1 Très fort + 1 Support (règle SVI 2020)';
+    if (pS === 1 && pM >= 1) return '1 Fort + 1–2 Modérés';
+    if (pS === 1 && pP >= 2) return '1 Fort + ≥ 2 Support';
+    if (pM >= 3) return '≥ 3 Modérés';
+    if (pM === 2) return '2 Modérés + ≥ 2 Support';
+    return '1 Modéré + ≥ 4 Support';
+  }
+
+  /* ---------- Système de points (Tavtigian 2020) ---------- */
+  function classifyPoints(applied) {
+    let total = 0, capNote = '';
+    const has = code => applied.find(a => a.code === code);
+    const pm1 = has('PM1'), pp3 = has('PP3');
+    for (const a of applied) total += points(a.dir, a.str);
+    // PP3 + PM1 plafonnés à Fort (4 points) — Pejaver 2022
+    if (pm1 && pp3) {
+      const s = points('P', pm1.str) + points('P', pp3.str);
+      if (s > 4) { total -= (s - 4); capNote = 'PM1 + PP3 plafonnés à 4 points (Pejaver 2022)'; }
+    }
+    const ba1 = applied.some(a => a.code === 'BA1');
+    let cls;
+    if (ba1) cls = 'B';
+    else if (total >= 10) cls = 'P';
+    else if (total >= 6) cls = 'LP';
+    else if (total >= 0) cls = 'VUS';
+    else if (total >= -6) cls = 'LB';
+    else cls = 'B';
+    let tier = '';
+    if (cls === 'VUS') tier = total <= 1 ? 'basse' : total <= 3 ? 'moyenne' : 'haute';
+    return { total, cls, tier, capNote, ba1 };
+  }
+
+  /* ---------- Fréquence maximale crédible (Whiffin 2017) ---------- */
+  function maxCredibleAF(mode, prevalence, allelic, genetic, penetrance) {
+    if (!(prevalence > 0 && allelic > 0 && genetic > 0 && penetrance > 0)) return null;
+    if (mode === 'AR') return allelic * Math.sqrt(prevalence * genetic / penetrance);
+    return prevalence * 0.5 * allelic * genetic / penetrance; // AD / XL (approximation)
+  }
+
+  /* ---------- Bandes REVEL (Pejaver 2022) ---------- */
+  function revelBand(r) {
+    if (r == null || isNaN(r)) return null;
+    if (r >= 0.932) return { dir: 'P', str: 'S', raw: 'S' };
+    if (r >= 0.773) return { dir: 'P', str: 'M', raw: 'M' };
+    if (r >= 0.644) return { dir: 'P', str: 'P', raw: 'P' };
+    if (r <= 0.003) return { dir: 'B', str: 'S', raw: 'VS' }; // plafonné à Fort dans l'outil
+    if (r <= 0.016) return { dir: 'B', str: 'S', raw: 'S' };
+    if (r <= 0.183) return { dir: 'B', str: 'M', raw: 'M' };
+    if (r <= 0.290) return { dir: 'B', str: 'P', raw: 'P' };
+    return { dir: null, str: null, raw: 'indet' };
+  }
+
+  function spliceMax(sai) {
+    if (!sai) return null;
+    const v = ['DS_AG', 'DS_AL', 'DS_DG', 'DS_DL'].map(k => parseFloat(sai[k])).filter(x => !isNaN(x));
+    return v.length ? Math.max(...v) : null;
+  }
+
+  /* ---------- Structure du transcrit (Ensembl lookup expand=1) ---------- */
+  function buildTx(lookup, cdna, cds) {
+    const strand = lookup.strand;
+    const exons = lookup.Exon.map(e => ({ id: e.id, start: e.start, end: e.end }));
+    exons.sort((a, b) => strand === 1 ? a.start - b.start : b.end - a.end);
+    let pos = 1;
+    exons.forEach((e, i) => { e.n = i + 1; e.len = e.end - e.start + 1; e.cStart = pos; e.cEnd = pos + e.len - 1; pos += e.len; });
+    const tx = { id: lookup.id, chr: lookup.seq_region_name, strand, exons, cdna: (cdna || '').toUpperCase(), cds: (cds || '').toUpperCase() };
+    const tr = lookup.Translation;
+    const tlStartG = strand === 1 ? tr.start : tr.end;
+    const tlEndG = strand === 1 ? tr.end : tr.start;
+    tx.utr5 = gToCdna(tx, tlStartG) - 1;
+    tx.cdsEndCdna = gToCdna(tx, tlEndG); // dernier nt du codon stop
+    tx.protLen = Math.round(tx.cds.length / 3) - 1;
+    tx.seqOk = tx.cdna.substr(tx.utr5, tx.cds.length) === tx.cds;
+    // longueur codante par exon
+    exons.forEach(e => {
+      const a = Math.max(e.cStart, tx.utr5 + 1), b = Math.min(e.cEnd, tx.cdsEndCdna);
+      e.codLen = b >= a ? b - a + 1 : 0;
+    });
+    return tx;
+  }
+
+  function gToCdna(tx, g) {
+    for (const e of tx.exons) {
+      if (g >= e.start && g <= e.end) return e.cStart + (tx.strand === 1 ? g - e.start : e.end - g);
+    }
+    return null;
+  }
+  function cdnaToG(tx, c) {
+    for (const e of tx.exons) {
+      if (c >= e.cStart && c <= e.cEnd) return tx.strand === 1 ? e.start + (c - e.cStart) : e.end - (c - e.cStart);
+    }
+    return null;
+  }
+  const cToG = (tx, cpos) => cdnaToG(tx, tx.utr5 + cpos);
+
+  function recomputeExons(exons) {
+    let pos = 1;
+    return exons.map((e, i) => { const x = Object.assign({}, e); x.n = e.n; x.idx = i; x.cStart = pos; x.cEnd = pos + x.len - 1; pos += x.len; return x; });
+  }
+
+  /* Applique un variant VCF (pos, ref, alt) au cDNA ; renvoie séquence + exons mutés */
+  function applyVcf(tx, vcf) {
+    let ref = vcf.ref.toUpperCase(), alt = vcf.alt.toUpperCase(), start = vcf.pos;
+    let kk = 0;
+    while (kk < ref.length && kk < alt.length && ref[kk] === alt[kk]) kk++;
+    let r = ref.slice(kk), a = alt.slice(kk);
+    start += kk;
+    while (r.length && a.length && r[r.length - 1] === a[a.length - 1]) { r = r.slice(0, -1); a = a.slice(0, -1); }
+    const cd = tx.cdna;
+    let lo, hi, ins, after, refOk = true;
+    if (r.length === 0) {
+      const cl = gToCdna(tx, start - 1), cr = gToCdna(tx, start);
+      if (cl == null || cr == null || Math.abs(cl - cr) !== 1) return { error: "Insertion hors exon ou à une jonction exon-intron : non modélisée" };
+      after = tx.strand === 1 ? cl : cr;
+      ins = tx.strand === 1 ? a : revcomp(a);
+      lo = after + 1; hi = after; // rien supprimé
+    } else {
+      const g1 = start, g2 = start + r.length - 1;
+      const c1 = gToCdna(tx, g1), c2 = gToCdna(tx, g2);
+      if (c1 == null || c2 == null) return { error: 'Le variant chevauche un intron : effet sur le transcrit non modélisable par simple édition' };
+      lo = Math.min(c1, c2); hi = Math.max(c1, c2);
+      if (hi - lo + 1 !== r.length) return { error: 'Le variant traverse une jonction exon-exon' };
+      const refTx = tx.strand === 1 ? r : revcomp(r);
+      refOk = cd.slice(lo - 1, hi) === refTx;
+      ins = tx.strand === 1 ? a : revcomp(a);
+    }
+    const seq = cd.slice(0, lo - 1) + ins + cd.slice(hi);
+    const delta = ins.length - (hi - lo + 1);
+    const exIdx = tx.exons.findIndex(e => lo >= e.cStart && lo <= e.cEnd + 1 && (hi >= lo ? hi <= e.cEnd : true));
+    const exons = tx.exons.map(e => Object.assign({}, e));
+    if (exIdx >= 0) exons[exIdx].len += delta;
+    return { seq, exons: recomputeExons(exons), changeStart: lo, delta, refOk, exIdx };
+  }
+
+  /* Premier codon stop dans le cadre à partir du début du CDS */
+  function findStop(seq, utr5) {
+    for (let i = utr5; i + 3 <= seq.length; i += 3) {
+      const c = seq.substr(i, 3);
+      if (c === 'TAA' || c === 'TAG' || c === 'TGA') return i + 1; // position cDNA 1-based du 1er nt
+    }
+    return null;
+  }
+
+  /* ---------- Règles NMD (Lindeboom 2016/2019 ; règle 50–55 nt) ---------- */
+  function nmdAssess(exons, ptc, utr5, opt) {
+    opt = Object.assign({ ej: 50, border: 55, startProx: 150, longExon: 407 }, opt || {});
+    const idx = exons.findIndex(e => ptc >= e.cStart && ptc <= e.cEnd);
+    const last = exons.length - 1;
+    const ex = exons[idx] || null;
+    const cpos = ptc - utr5;
+    const lastEJ = exons.length > 1 ? exons[last].cStart - 1 : null;
+    const dist = lastEJ != null ? lastEJ - ptc + 1 : null;
+    const rules = [];
+    const single = exons.length === 1;
+    const inLast = idx === last;
+    const inEJ = !single && !inLast && dist <= opt.ej;
+    const border = !single && !inLast && !inEJ && dist <= opt.border;
+    const sp = cpos <= opt.startProx;
+    const le = ex ? ex.len > opt.longExon : false;
+    rules.push({ id: 'single', label: 'Transcrit mono-exonique (sans intron)', hit: single, kind: 'canon' });
+    rules.push({ id: 'last', label: 'PTC dans le dernier exon', hit: inLast, kind: 'canon' });
+    rules.push({ id: 'ej', label: `PTC à ≤ ${opt.ej} nt en amont de la dernière jonction exon-exon`, hit: inEJ, kind: 'canon', detail: dist != null && !inLast ? `distance : ${dist} nt` : '' });
+    rules.push({ id: 'border', label: `Zone frontière ${opt.ej + 1}–${opt.border} nt`, hit: border, kind: 'border' });
+    rules.push({ id: 'start', label: `PTC dans les ${opt.startProx} premiers nt codants (start-proximal)`, hit: sp, kind: 'partial', detail: `c.${cpos}` });
+    rules.push({ id: 'long', label: `PTC dans un exon long (> ${opt.longExon} nt)`, hit: le, kind: 'partial', detail: ex ? `exon de ${ex.len} nt` : '' });
+    let verdict, why;
+    if (single || inLast || inEJ) { verdict = 'escape'; why = 'Échappement au NMD prédit (règle canonique)'; }
+    else if (border) { verdict = 'uncertain'; why = 'Zone frontière 50–55 nt : NMD incertain'; }
+    else if (sp || le) { verdict = 'uncertain'; why = sp ? 'NMD prédit, mais PTC start-proximal : échappement partiel possible (réinitiation de la traduction)' : 'NMD prédit, mais exon long : efficacité du NMD souvent réduite'; }
+    else { verdict = 'nmd'; why = 'NMD prédit (PTC en amont de la limite des 50–55 nt)'; }
+    return { verdict, why, rules, exonIdx: idx, exonN: ex ? ex.n : null, cpos, dist, aa: Math.ceil(cpos / 3) };
+  }
+
+  /* ---------- Analyse LoF (PTC, saut d'exon, perte du start) ---------- */
+  function lofType(terms) {
+    const t = terms || [];
+    if (t.includes('start_lost')) return 'start';
+    if (t.includes('splice_donor_variant') || t.includes('splice_acceptor_variant')) return 'splice';
+    if (t.includes('stop_gained') || t.includes('frameshift_variant')) return 'ptc';
+    return null;
+  }
+
+  function analyzeLoF(tx, vcf, csq, nmdOpt) {
+    const type = lofType(csq.consequence_terms);
+    if (!type) return null;
+    const res = { type, notes: [] };
+    if (!tx || !tx.seqOk) { res.error = 'Séquence du transcrit indisponible ou incohérente'; return res; }
+    const protLen = tx.protLen;
+    if (type === 'ptc') {
+      const m = applyVcf(tx, vcf);
+      if (m.error) { res.error = m.error; return res; }
+      if (!m.refOk) res.notes.push("La base de référence ne correspond pas exactement au transcrit : vérifier l'allèle.");
+      const ptc = findStop(m.seq, tx.utr5);
+      if (ptc == null) { res.error = 'Aucun codon stop dans le nouveau cadre (non-stop) : NMD non évaluable'; return res; }
+      res.ptc = ptc;
+      res.nmd = nmdAssess(m.exons, ptc, tx.utr5, nmdOpt);
+      res.exons = m.exons;
+      const firstAlt = csq.protein_start || res.nmd.aa;
+      res.firstAltAA = firstAlt;
+      res.removedFrac = Math.max(0, (protLen - firstAlt + 1) / protLen);
+      res.newProtLen = res.nmd.aa - 1;
+      res.frame = 'out';
+      return res;
+    }
+    if (type === 'splice') {
+      const intr = (csq.intron || '').split('/')[0];
+      const iN = parseInt(intr, 10);
+      if (!iN) { res.error = "Numéro d'intron indisponible"; return res; }
+      const isDonor = (csq.consequence_terms || []).includes('splice_donor_variant');
+      const exN = isDonor ? iN : iN + 1;
+      const ex = tx.exons.find(e => e.n === exN);
+      if (!ex) { res.error = 'Exon concerné introuvable'; return res; }
+      res.skippedExon = exN; res.site = isDonor ? 'donneur' : 'accepteur';
+      res.notes.push(`Hypothèse modélisée : saut de l'exon ${exN} (site ${res.site}). Un site cryptique peut produire un autre transcrit : ce point est à vérifier (SpliceAI, ARN).`);
+      if (exN === 1 || exN === tx.exons.length) res.notes.push("L'exon concerné est le premier ou le dernier : le saut d'exon n'est pas le mécanisme attendu.");
+      if (ex.cStart <= tx.utr5 + 1 && ex.cEnd >= tx.utr5 + 1) res.notes.push("L'exon sauté contient le codon d'initiation : évaluer aussi comme perte du start.");
+      const seq = tx.cdna.slice(0, ex.cStart - 1) + tx.cdna.slice(ex.cEnd);
+      const exons = recomputeExons(tx.exons.filter(e => e.n !== exN));
+      res.exons = exons;
+      res.exonLen = ex.len; res.codLen = ex.codLen;
+      res.frame = ex.codLen % 3 === 0 ? 'in' : 'out';
+      if (ex.codLen === 0) { res.frame = 'noncoding'; res.notes.push("L'exon sauté est non codant."); }
+      if (res.frame === 'in') {
+        res.removedFrac = (ex.codLen / 3) / protLen;
+        return res;
+      }
+      const ptc = findStop(seq, tx.utr5);
+      if (ptc == null) { res.error = 'Aucun stop dans le cadre après saut d\'exon'; return res; }
+      res.ptc = ptc;
+      res.nmd = nmdAssess(exons, ptc, tx.utr5, nmdOpt);
+      // 1er acide aminé altéré = début de l'exon sauté dans le CDS
+      const firstAltC = Math.max(1, ex.cStart - tx.utr5);
+      res.firstAltAA = Math.ceil(firstAltC / 3);
+      res.removedFrac = Math.max(0, (protLen - res.firstAltAA + 1) / protLen);
+      return res;
+    }
+    if (type === 'start') {
+      let nextMet = null;
+      for (let i = 3; i + 3 <= tx.cds.length; i += 3) if (tx.cds.substr(i, 3) === 'ATG') { nextMet = i / 3 + 1; break; }
+      res.nextMet = nextMet;
+      res.removedFrac = nextMet ? (nextMet - 1) / protLen : 1;
+      res.notes.push(nextMet ? `Prochaine méthionine en phase : p.Met${nextMet} (c.${(nextMet - 1) * 3 + 1}).` : 'Aucune méthionine en phase en aval.');
+      return res;
+    }
+    return res;
+  }
+
+  /* ---------- Arbre PVS1 (Abou Tayoun et al. 2018) ---------- */
+  function pvs1Tree(lof, ans) {
+    // ans : {lofMech, relevantTx, critical, lofFrequent, nmd(bool), gt10(bool), altStart, pathUpstream}
+    const path = [];
+    const step = (q, a, src) => path.push({ q, a, src });
+    if (!lof) return { str: null, path, reason: 'Variant non LoF' };
+    if (ans.lofMech === 'no') { step('La perte de fonction est-elle un mécanisme connu de la maladie ?', 'Non', 'user'); return { str: 'NA', path, reason: 'LoF non établi comme mécanisme → PVS1 non applicable' }; }
+    step('La perte de fonction est-elle un mécanisme connu de la maladie ?', ans.lofMech === 'yes' ? 'Oui' : 'À confirmer', 'user');
+    const tail = () => {
+      step('La région tronquée/altérée est-elle critique pour la fonction ?', ans.critical === true ? 'Oui' : ans.critical === false ? 'Non' : 'Inconnu', 'user');
+      if (ans.critical === true) return 'S';
+      step('LoF fréquents dans la population (gnomAD) pour cette région, ou exon absent de transcrits pertinents ?', ans.lofFrequent ? 'Oui' : 'Non', 'user');
+      if (ans.lofFrequent) return 'NA';
+      step('Le variant retire-t-il > 10 % de la protéine ?', ans.gt10 ? 'Oui' : 'Non', 'auto');
+      return ans.gt10 ? 'S' : 'M';
+    };
+    let str;
+    if (lof.type === 'ptc') {
+      step('NMD prédit ?', ans.nmd ? 'Oui' : 'Non', ans.nmdSrc || 'auto');
+      if (ans.nmd) {
+        step('Exon présent dans le(s) transcrit(s) biologiquement pertinent(s) ?', ans.relevantTx ? 'Oui' : 'Non', 'user');
+        str = ans.relevantTx ? 'VS' : 'NA';
+      } else str = tail();
+    } else if (lof.type === 'splice') {
+      const frame = lof.frame === 'in' ? 'in' : 'out';
+      step('Le saut d\'exon prédit conserve-t-il le cadre de lecture ?', frame === 'in' ? 'Oui (en phase)' : 'Non (décalage)', 'auto');
+      if (frame === 'out') {
+        step('NMD prédit ?', ans.nmd ? 'Oui' : 'Non', ans.nmdSrc || 'auto');
+        if (ans.nmd) {
+          step('Exon présent dans le(s) transcrit(s) biologiquement pertinent(s) ?', ans.relevantTx ? 'Oui' : 'Non', 'user');
+          str = ans.relevantTx ? 'VS' : 'NA';
+        } else str = tail();
+      } else str = tail();
+    } else if (lof.type === 'start') {
+      step('Un transcrit fonctionnel utilise-t-il un autre codon d\'initiation ?', ans.altStart ? 'Oui' : 'Non', 'user');
+      if (ans.altStart) str = 'NA';
+      else {
+        step('≥ 1 variant pathogène en amont de la méthionine alternative la plus proche ?', ans.pathUpstream ? 'Oui' : 'Non', ans.pathUpstreamSrc || 'user');
+        str = ans.pathUpstream ? 'M' : 'P';
+      }
+    }
+    const reason = str === 'NA' ? 'PVS1 non applicable' : 'PVS1' + (str === 'VS' ? '' : '_' + STR_EN[str]);
+    return { str, path, reason, pending: ans.lofMech !== 'yes' };
+  }
+
+  /* ---------- Parsing ClinVar ---------- */
+  const P3 = 'Ala|Arg|Asn|Asp|Cys|Gln|Glu|Gly|His|Ile|Leu|Lys|Met|Phe|Pro|Ser|Thr|Trp|Tyr|Val|Ter|Sec';
+  function parseClinvarTitle(title) {
+    const o = { title };
+    const m = /^([A-Z]{2}_\d+(?:\.\d+)?)\(([^)]+)\):(c\.[^ ]+)/.exec(title || '');
+    if (m) { o.tx = m[1]; o.gene = m[2]; o.c = m[3]; }
+    const p = new RegExp('\\(p\\.(' + P3 + ')(\\d+)(' + P3 + '|=|fs|del|dup|ins)').exec(title || '');
+    if (p) { o.ref = p[1]; o.pos = +p[2]; o.alt = p[3]; }
+    return o;
+  }
+  function clinsigRank(desc) {
+    const d = (desc || '').toLowerCase();
+    if (d.includes('conflicting')) return 'conflict';
+    if (d === 'pathogenic' || d.startsWith('pathogenic;') || d === 'pathogenic/likely pathogenic') return d.includes('likely') ? 'P/LP' : 'P';
+    if (d.startsWith('likely pathogenic')) return 'LP';
+    if (d.includes('benign')) return 'B';
+    if (d.includes('uncertain')) return 'VUS';
+    return 'other';
+  }
+  function reviewStars(rs) {
+    const r = (rs || '').toLowerCase();
+    if (r.includes('practice guideline')) return 4;
+    if (r.includes('expert panel')) return 3;
+    if (r.includes('multiple submitters') && r.includes('no conflicts')) return 2;
+    if (r.includes('single submitter') || r.includes('conflicting')) return 1;
+    return 0;
+  }
+
+  /* Comparaison des variants ClinVar au même codon → PS1 / PM5 */
+  function codonEvidence(records, ours) {
+    // ours : {ref3, pos, alt3, c, txBase}
+    const ps1 = [], pm5 = [], same = [];
+    for (const r of records) {
+      const t = parseClinvarTitle(r.title);
+      const sig = clinsigRank(r.germline);
+      const item = Object.assign({}, t, { uid: r.uid, sig, germline: r.germline, stars: reviewStars(r.review), review: r.review, txMismatch: t.tx && ours.txBase && t.tx.split('.')[0] !== ours.txBase });
+      if (t.c && ours.c && t.c === ours.c && !item.txMismatch) { same.push(item); continue; }
+      if (r.spdi && ours.spdi && r.spdi === ours.spdi) { same.push(item); continue; }
+      if (t.pos !== ours.pos || t.ref !== ours.ref3) continue;
+      if (!['P', 'LP', 'P/LP'].includes(sig)) continue;
+      if (t.alt === ours.alt3) ps1.push(item);
+      else if (t.alt && t.alt !== 'Ter' && t.alt !== '=' && /^[A-Z][a-z]{2}$/.test(t.alt)) pm5.push(item);
+    }
+    return { ps1, pm5, same };
+  }
+
+  /* ---------- Normalisation de l'entrée ---------- */
+  function parseInput(s) {
+    s = (s || '').trim().replace(/\s+/g, '');
+    if (!s) return null;
+    let m = /^(?:chr)?([0-9]{1,2}|X|Y|MT|M)[-:_](\d+)[-:_]([ACGTN]+)[-:_>/]([ACGTN]+)$/i.exec(s);
+    if (m) return { kind: 'vcf', chr: m[1].toUpperCase().replace(/^M$/, 'MT'), pos: +m[2], ref: m[3].toUpperCase(), alt: m[4].toUpperCase() };
+    if (/^rs\d+$/i.test(s)) return { kind: 'rs', id: s.toLowerCase() };
+    if (/^NM_\d+(\.\d+)?(\([^)]*\))?:c\./i.test(s) || /^NR_/i.test(s)) return { kind: 'hgvs', refseq: true, hgvs: s.replace(/\([^)]*\)/, '') };
+    if (/^ENST\d+(\.\d+)?:c\./i.test(s)) return { kind: 'hgvs', refseq: false, hgvs: s };
+    if (/^NC_\d+\.\d+:g\./i.test(s)) return { kind: 'hgvs', refseq: false, hgvs: s };
+    if (/^[A-Z0-9-]+:c\./i.test(s)) return { kind: 'hgvs', refseq: false, hgvs: s, geneSymbol: true };
+    return { kind: 'unknown', raw: s };
+  }
+
+  const NC38 = { 1: 'NC_000001.11', 2: 'NC_000002.12', 3: 'NC_000003.12', 4: 'NC_000004.12', 5: 'NC_000005.10', 6: 'NC_000006.12', 7: 'NC_000007.14', 8: 'NC_000008.11', 9: 'NC_000009.12', 10: 'NC_000010.11', 11: 'NC_000011.10', 12: 'NC_000012.12', 13: 'NC_000013.11', 14: 'NC_000014.9', 15: 'NC_000015.10', 16: 'NC_000016.10', 17: 'NC_000017.11', 18: 'NC_000018.10', 19: 'NC_000019.10', 20: 'NC_000020.11', 21: 'NC_000021.9', 22: 'NC_000022.11', X: 'NC_000023.11', Y: 'NC_000024.10', MT: 'NC_012920.1' };
+
+  function vcfToGHgvs(v) {
+    const acc = NC38[v.chr];
+    if (!acc) return null;
+    let ref = v.ref, alt = v.alt, pos = v.pos, kk = 0;
+    while (kk < ref.length && kk < alt.length && ref[kk] === alt[kk]) kk++;
+    const r = ref.slice(kk), a = alt.slice(kk); pos += kk;
+    if (r.length === 1 && a.length === 1) return `${acc}:g.${pos}${r}>${a}`;
+    if (!a.length) return r.length === 1 ? `${acc}:g.${pos}del` : `${acc}:g.${pos}_${pos + r.length - 1}del`;
+    if (!r.length) return `${acc}:g.${pos - 1}_${pos}ins${a}`;
+    return r.length === 1 ? `${acc}:g.${pos}delins${a}` : `${acc}:g.${pos}_${pos + r.length - 1}delins${a}`;
+  }
+
+  function vcfToSpdi(v) {
+    const acc = NC38[v.chr];
+    if (!acc) return null;
+    return `${acc}:${v.pos - 1}:${v.ref}:${v.alt}`;
+  }
+
+  return {
+    revcomp, CODON, AA3, STRENGTHS, STR_LABEL, STR_EN, PTS, critName, points,
+    classify2015, classifyPoints, maxCredibleAF, revelBand, spliceMax,
+    buildTx, gToCdna, cdnaToG, cToG, applyVcf, findStop, nmdAssess, lofType, analyzeLoF, pvs1Tree,
+    parseClinvarTitle, clinsigRank, reviewStars, codonEvidence, parseInput, vcfToGHgvs, vcfToSpdi, NC38
+  };
+})();
+if (typeof module !== 'undefined') module.exports = CORE;
+
+</script>
+<script>
+/* ===== Les 28 critères ACMG/AMP — contenu pédagogique (FR) ===== */
+const CAT = {
+  pop: 'Population',
+  comp: 'Prédictif & computationnel',
+  func: 'Fonctionnel',
+  seg: 'Ségrégation',
+  dn: 'De novo',
+  alle: 'Allélique',
+  case: 'Cas & phénotype',
+  rep: 'Source rapportée'
+};
+
+const CRITERIA = [
+  /* ---------------- PATHOGÈNES ---------------- */
+  {
+    code: 'PVS1', dir: 'P', def: 'VS', cat: 'comp', allowed: ['VS', 'S', 'M', 'P'],
+    titre: 'Variant nul (perte de fonction)',
+    court: 'Non-sens, frameshift, ±1/2, start, délétion d\'exon',
+    def2015: "Variant nul (non-sens, décalage du cadre de lecture, sites d'épissage canoniques ±1 ou ±2, codon d'initiation, délétion d'un ou plusieurs exons) dans un gène où la perte de fonction (LoF) est un mécanisme connu de la maladie.",
+    clingen: "Abou Tayoun et al. (2018) ont transformé PVS1 en arbre décisionnel : la force dépend de l'effet NMD, du caractère critique de la région tronquée, de la proportion de protéine perdue (> 10 %) et de la présence de l'exon dans les transcrits biologiquement pertinents. Walker et al. (2023) précisent l'usage pour les variants d'épissage (PVS1 et preuves ARN). PVS1 et PP3 ne doivent pas être cumulés pour le même mécanisme.",
+    outil: "L'outil reconstruit le transcrit MANE (Ensembl), applique le variant sur la séquence, localise le premier codon stop (PTC) dans le nouveau cadre, puis applique les règles NMD (dernier exon, 50–55 nt, start-proximal, exon long). Pour les sites ±1/2, il modélise le saut de l'exon adjacent. Pour une perte du start, il cherche la méthionine en phase suivante et interroge ClinVar en amont. La question « LoF = mécanisme connu ? » reste à votre charge (LOEUF et ClinGen Dosage sont des indices, pas une preuve).",
+    pieges: "Gènes à mécanisme gain de fonction ou dominant-négatif (PVS1 non applicable) ; exon absent de transcrits pertinents ; PTC dans le dernier exon d'une région non critique ; sites cryptiques qui restaurent le cadre ; saut d'exon réel différent de celui modélisé.",
+    refs: [['Abou Tayoun 2018 (PMID 30192042)', 'https://pubmed.ncbi.nlm.nih.gov/30192042/'], ['Walker 2023 (PMID 37352859)', 'https://pubmed.ncbi.nlm.nih.gov/37352859/']]
+  },
+  {
+    code: 'PS1', dir: 'P', def: 'S', cat: 'comp', allowed: ['S', 'M', 'P'],
+    titre: 'Même acide aminé qu\'un variant pathogène',
+    court: 'Même changement protéique, autre nucléotide',
+    def2015: "Même changement d'acide aminé qu'un variant pathogène établi, quelle que soit la substitution nucléotidique (ex. c.34G>C et c.34G>T donnant tous deux p.Val12Leu).",
+    clingen: "Il faut s'assurer que la pathogénicité du variant de référence ne passe pas par l'épissage, et que le variant évalué n'a pas lui-même d'impact prédit sur l'épissage (Walker 2023). Beaucoup de VCEP appliquent PS1 si la référence est Pathogène et PS1_Moderate si elle est Probablement pathogène.",
+    outil: "Interroge ClinVar sur les 3 positions génomiques du codon et compare les variants P/LP ayant le même p. sur le même transcrit. Propose PS1 (référence P) ou PS1_Moderate (référence LP). Un avertissement apparaît si SpliceAI ≥ 0,2.",
+    pieges: "Classification ClinVar non experte (vérifier les étoiles) ; titre ClinVar sur un autre transcrit ; référence elle-même classée par PS1/PM5 (raisonnement circulaire).",
+    refs: [['Walker 2023 (PMID 37352859)', 'https://pubmed.ncbi.nlm.nih.gov/37352859/']]
+  },
+  {
+    code: 'PS2', dir: 'P', def: 'S', cat: 'dn', allowed: ['VS', 'S', 'M', 'P'],
+    titre: 'De novo confirmé',
+    court: 'Maternité et paternité confirmées',
+    def2015: "Variant de novo (maternité ET paternité confirmées) chez un patient atteint, sans antécédents familiaux.",
+    clingen: "Recommandation SVI v1.1 : système de points selon la filiation (confirmée ou présumée) et la cohérence phénotypique. Par proband : phénotype très spécifique du gène → 2 points (confirmé) ou 1 (présumé) ; phénotype compatible mais non spécifique → 1 (confirmé) ou 0,5 (présumé). Total : 0,5 = Support, 1 = Modéré, 2 = Fort, 4 = Très fort. PS2 et PM6 sont mutuellement exclusifs.",
+    outil: "Manuel. Un calculateur de points est disponible ci-dessous.",
+    pieges: "Mosaïcisme parental ; filiation non vérifiée ; phénotype peu spécifique (déficience intellectuelle isolée) ; gène à forte hétérogénéité.",
+    refs: [['SVI de novo v1.1', 'https://www.clinicalgenome.org/site/assets/files/3461/svi_proposal_for_de_novo_criteria_v1_1.pdf']],
+    calc: 'denovo'
+  },
+  {
+    code: 'PS3', dir: 'P', def: 'S', cat: 'func', allowed: ['VS', 'S', 'M', 'P'],
+    titre: 'Études fonctionnelles délétères',
+    court: 'In vitro / in vivo bien établies',
+    def2015: "Études fonctionnelles in vitro ou in vivo bien établies montrant un effet délétère sur le gène ou son produit.",
+    clingen: "Brnich et al. (2019) : définir le mécanisme, évaluer la classe d'essai, vérifier la validité de l'essai (contrôles pathogènes et bénins, réplicats) et calculer si possible une OddsPath, qui détermine la force. Sans analyse statistique rigoureuse, il faut au minimum 11 contrôles (pathogènes + bénins) au total pour atteindre le niveau Modéré.",
+    outil: "Manuel. MobiDetails peut signaler des données MaveDB (scores de mutagenèse saturante), affichées dans les preuves.",
+    pieges: "Modèle animal non transposable (préciser si seulement murin) ; essai mesurant un mécanisme sans lien avec la maladie ; absence de contrôles bénins.",
+    refs: [['Brnich 2019 (PMID 31892348)', 'https://pubmed.ncbi.nlm.nih.gov/31892348/']]
+  },
+  {
+    code: 'PS4', dir: 'P', def: 'S', cat: 'case', allowed: ['VS', 'S', 'M', 'P'],
+    titre: 'Prévalence accrue chez les malades',
+    court: 'Cas vs témoins (OR)',
+    def2015: "Prévalence du variant significativement plus élevée chez les sujets atteints que chez les témoins (en 2015 : odds ratio > 5 avec un intervalle de confiance excluant 1).",
+    clingen: "Pour les variants rares, les VCEP utilisent un nombre de probands indépendants (seuils propres à chaque gène). Pour les maladies récessives, utiliser plutôt PM3.",
+    outil: "Manuel.",
+    pieges: "Probands apparentés comptés plusieurs fois ; mode récessif (→ PM3) ; témoins mal appariés en ancestralité.",
+    refs: []
+  },
+  {
+    code: 'PM1', dir: 'P', def: 'M', cat: 'comp', allowed: ['S', 'M', 'P'],
+    titre: 'Hotspot / domaine fonctionnel critique',
+    court: 'Sans variation bénigne',
+    def2015: "Variant situé dans un hotspot mutationnel et/ou un domaine fonctionnel critique et bien établi (ex. site actif d'une enzyme), sans variation bénigne.",
+    clingen: "La définition des hotspots est propre à chaque gène (VCEP). Pejaver (2022) recommande de plafonner la somme PM1 + PP3 à Fort, car les prédicteurs tiennent déjà compte du domaine.",
+    outil: "Non appliqué automatiquement. Les domaines (Pfam, InterPro, PROSITE…) renvoyés par VEP sont listés comme indices.",
+    pieges: "Être dans un domaine ne suffit pas : il faut une densité de variants P/LP et l'absence de variants bénins dans la région.",
+    refs: [['Pejaver 2022 (PMID 36413997)', 'https://pubmed.ncbi.nlm.nih.gov/36413997/']]
+  },
+  {
+    code: 'PM2', dir: 'P', def: 'M', cat: 'pop', allowed: ['M', 'P'],
+    titre: 'Absent ou extrêmement rare chez les témoins',
+    court: 'Rareté dans gnomAD',
+    def2015: "Absent des bases de témoins (ou à fréquence extrêmement basse s'il s'agit d'un récessif).",
+    clingen: "SVI (septembre 2020) : PM2 passe par défaut au niveau Support (PM2_Supporting). Une nouvelle règle permet alors PVS1 + 1 critère de Support → Probablement pathogène.",
+    outil: "gnomAD v4 (exomes + génomes, « joint »). Par défaut : dominant/lié à l'X → absent (AC = 0) ; récessif → AF ≤ seuil réglable. Les seuils sont modifiables dans Paramètres et doivent suivre les spécifications VCEP du gène.",
+    pieges: "Absence liée à une mauvaise couverture de la région ; populations nord-africaines peu représentées dans gnomAD (une absence n'exclut pas un variant fondateur local) ; ne pas appliquer PM2 en même temps que BS1/BA1.",
+    refs: [['SVI PM2 v1.0', 'https://clinicalgenome.org/site/assets/files/5182/pm2_-_svi_recommendation_-_approved_sept2020.pdf']]
+  },
+  {
+    code: 'PM3', dir: 'P', def: 'M', cat: 'alle', allowed: ['VS', 'S', 'M', 'P'],
+    titre: 'En trans avec un variant pathogène (récessif)',
+    court: 'Hétérozygote composite / homozygote',
+    def2015: "Pour une maladie récessive, détecté en trans avec un variant pathogène.",
+    clingen: "Recommandation SVI v1.0 (points par proband) : en trans confirmé avec un P/LP → 1,0 ; phase inconnue avec un P → 0,5, avec un LP → 0,25 ; homozygote → 0,5 (total des homozygotes plafonné à 1,0). Total : 0,5 = Support, 1 = Modéré, 2 = Fort, 4 = Très fort. Tous les variants doivent être suffisamment rares.",
+    outil: "Manuel. Un calculateur de points est disponible ci-dessous.",
+    pieges: "Phase non vérifiée chez les parents ; consanguinité (homozygotie fréquente sans valeur forte) ; variant partenaire lui-même VUS.",
+    refs: [['SVI PM3 v1.0', 'https://www.clinicalgenome.org/site/assets/files/3717/svi_proposal_for_pm3_criterion_-_version_1.pdf']],
+    calc: 'pm3'
+  },
+  {
+    code: 'PM4', dir: 'P', def: 'M', cat: 'comp', allowed: ['M', 'P'],
+    titre: 'Changement de longueur protéique',
+    court: 'Indel en phase hors répétition, stop-loss',
+    def2015: "Modification de la longueur de la protéine due à une délétion/insertion en phase dans une région non répétée, ou à un variant stop-loss.",
+    clingen: "Ne pas cumuler avec PVS1. Plusieurs VCEP utilisent PM4_Supporting pour les petites délétions en phase (1 acide aminé).",
+    outil: "Proposé automatiquement pour les indels en phase et les stop-loss quand PVS1 n'est pas appliqué. Vérifiez vous-même l'absence de région répétée (sinon → BP3).",
+    pieges: "Région répétée (polyAla, polyGln…) ; indel en phase créant un site d'épissage.",
+    refs: []
+  },
+  {
+    code: 'PM5', dir: 'P', def: 'M', cat: 'comp', allowed: ['S', 'M', 'P'],
+    titre: 'Autre faux-sens pathogène au même résidu',
+    court: 'Même codon, acide aminé différent',
+    def2015: "Nouveau faux-sens à un résidu où un autre changement faux-sens a déjà été établi comme pathogène (ex. p.Arg156His pathogène, et p.Arg156Cys évalué).",
+    clingen: "Comme PS1 : exclure un mécanisme d'épissage pour le variant de référence. Pratique courante : PM5 si la référence est P, PM5_Supporting si elle est LP. Certains VCEP l'étendent aux variants tronquants (PM5_PTC). PS1 et PM5 ne se cumulent pas.",
+    outil: "Interroge ClinVar sur le codon et liste les autres faux-sens P/LP au même résidu.",
+    pieges: "Propriétés physico-chimiques très différentes entre les deux acides aminés ; référence de faible niveau de revue.",
+    refs: []
+  },
+  {
+    code: 'PM6', dir: 'P', def: 'M', cat: 'dn', allowed: ['VS', 'S', 'M', 'P'],
+    titre: 'De novo présumé',
+    court: 'Filiation non confirmée',
+    def2015: "De novo présumé, sans confirmation de la maternité et de la paternité.",
+    clingen: "Même système de points que PS2 (SVI v1.1), avec des valeurs plus faibles pour une filiation présumée.",
+    outil: "Manuel (calculateur partagé avec PS2).",
+    pieges: "Exclusif avec PS2 pour un même cas.",
+    refs: [['SVI de novo v1.1', 'https://www.clinicalgenome.org/site/assets/files/3461/svi_proposal_for_de_novo_criteria_v1_1.pdf']],
+    calc: 'denovo'
+  },
+  {
+    code: 'PP1', dir: 'P', def: 'P', cat: 'seg', allowed: ['S', 'M', 'P'],
+    titre: 'Coségrégation avec la maladie',
+    court: 'Plusieurs apparentés atteints',
+    def2015: "Coségrégation avec la maladie chez plusieurs membres atteints d'une famille, pour un gène dont l'implication dans la maladie est établie. La force peut augmenter avec la quantité de données.",
+    clingen: "Jarvik & Browning (2016) : on compte les méioses informatives (m), pas les individus ; probabilité (1/2)^m. Une famille : ≤ 1/8 (≥ 3 méioses) Support, ≤ 1/16 (4) Modéré, ≤ 1/32 (5) Fort. Plusieurs familles : ≤ 1/4, ≤ 1/8, ≤ 1/16. Variante de Kelly (2018) : 3 / 5 / 7 méioses.",
+    outil: "Manuel. Un calculateur de méioses est disponible ci-dessous.",
+    pieges: "Pénétrance incomplète, âge de début, phénocopies ; compter des individus au lieu de méioses.",
+    refs: [['Jarvik & Browning 2016 (PMID 27236918)', 'https://pubmed.ncbi.nlm.nih.gov/27236918/']],
+    calc: 'pp1'
+  },
+  {
+    code: 'PP2', dir: 'P', def: 'P', cat: 'comp', allowed: ['P'],
+    titre: 'Faux-sens dans un gène intolérant aux faux-sens',
+    court: 'Peu de faux-sens bénins dans le gène',
+    def2015: "Faux-sens dans un gène où la variation faux-sens bénigne est rare et où les faux-sens sont un mécanisme fréquent de la maladie.",
+    clingen: "Usage restreint et propre à chaque gène. À ne pas combiner avec BP1 (logique opposée).",
+    outil: "Manuel. Les métriques de contrainte (LOEUF) sont indicatives mais ne concernent pas les faux-sens.",
+    pieges: "Appliquer PP2 à tous les gènes par défaut ; double comptage avec PP3.",
+    refs: []
+  },
+  {
+    code: 'PP3', dir: 'P', def: 'P', cat: 'comp', allowed: ['S', 'M', 'P'],
+    titre: 'Prédictions in silico délétères',
+    court: 'REVEL / SpliceAI',
+    def2015: "Plusieurs lignes de preuves computationnelles soutiennent un effet délétère (conservation, prédicteurs, impact sur l'épissage…).",
+    clingen: "Pejaver et al. (2022) : utiliser UN seul outil calibré pour les faux-sens. REVEL ≥ 0,932 → Fort ; ≥ 0,773 → Modéré ; ≥ 0,644 → Support. Walker et al. (2023) : SpliceAI ≥ 0,2 → PP3 (épissage) au niveau Support. Ne pas cumuler avec PVS1, et plafonner PP3 + PM1 à Fort.",
+    outil: "Score REVEL du transcrit MANE (Ensembl VEP) ; SpliceAI pré-calculé (VEP, MANE, scores bruts) ou MobiDetails. AlphaMissense est affiché à titre informatif, mais n'est pas utilisé pour classer : la règle impose un seul outil.",
+    pieges: "Additionner plusieurs prédicteurs concordants (double comptage) ; PP3 sur un variant LoF déjà en PVS1 ; zone indéterminée de REVEL (0,291–0,643) → aucun critère.",
+    refs: [['Pejaver 2022 (PMID 36413997)', 'https://pubmed.ncbi.nlm.nih.gov/36413997/'], ['Walker 2023 (PMID 37352859)', 'https://pubmed.ncbi.nlm.nih.gov/37352859/']]
+  },
+  {
+    code: 'PP4', dir: 'P', def: 'P', cat: 'case', allowed: ['S', 'M', 'P'],
+    titre: 'Phénotype très spécifique',
+    court: 'Maladie à étiologie génétique unique',
+    def2015: "Le phénotype ou l'histoire familiale du patient est très spécifique d'une maladie à étiologie génétique unique.",
+    clingen: "Les recommandations ClinGen sur PP1/BS4 et PP4 permettent de pondérer PP4 selon la spécificité diagnostique du phénotype et la sensibilité du test ; plusieurs VCEP l'utilisent à des forces supérieures.",
+    outil: "Manuel.",
+    pieges: "Phénotype fréquent ou hétérogène génétiquement ; raisonnement circulaire (le test a été prescrit à cause du phénotype).",
+    refs: []
+  },
+  {
+    code: 'PP5', dir: 'P', def: 'P', cat: 'rep', allowed: ['P'],
+    titre: 'Source réputée : pathogène',
+    court: 'Déconseillé (ClinGen SVI)',
+    def2015: "Une source réputée a récemment rapporté le variant comme pathogène, sans que les preuves soient accessibles au laboratoire.",
+    clingen: "Le groupe SVI recommande de ne plus utiliser PP5 ni BP6 (Biesecker & Harrison 2018) : il faut évaluer les preuves sous-jacentes plutôt que l'avis d'autrui.",
+    outil: "Jamais proposé. La classification ClinVar est affichée à titre d'information.",
+    pieges: "Double comptage des preuves déjà utilisées par la source.",
+    refs: [['Biesecker & Harrison 2018 (PMID 29543229)', 'https://pubmed.ncbi.nlm.nih.gov/29543229/']]
+  },
+  /* ---------------- BÉNINS ---------------- */
+  {
+    code: 'BA1', dir: 'B', def: 'SA', cat: 'pop', allowed: ['SA'],
+    titre: 'Fréquence allélique > 5 %',
+    court: 'Autonome',
+    def2015: "Fréquence allélique supérieure à 5 % dans les bases de population : critère suffisant à lui seul pour une classification bénigne.",
+    clingen: "Ghosh et al. (2018) : utiliser la fréquence filtrante (FAF95) du groupe le plus fréquent (grpmax/popmax) dans une population continentale de taille suffisante. Il existe une liste d'exceptions (ex. HFE c.845G>A p.Cys282Tyr).",
+    outil: "Compare la FAF95 grpmax gnomAD v4 « joint » au seuil (5 % par défaut, réglable).",
+    pieges: "Variants de la liste d'exceptions ; artefacts techniques (filtres gnomAD signalés dans les preuves).",
+    refs: [['Ghosh 2018 (PMID 30311383)', 'https://pubmed.ncbi.nlm.nih.gov/30311383/']]
+  },
+  {
+    code: 'BS1', dir: 'B', def: 'S', cat: 'pop', allowed: ['S', 'P'],
+    titre: 'Fréquence plus élevée qu\'attendu',
+    court: 'Au-delà du seuil de la maladie',
+    def2015: "Fréquence allélique supérieure à ce qui est attendu pour la maladie.",
+    clingen: "Whiffin et al. (2017) : fréquence maximale crédible = f(prévalence, contribution allélique maximale, contribution génétique, pénétrance), comparée à la FAF95 grpmax.",
+    outil: "Seuil calculé dans Paramètres (calculateur de Whiffin) selon le mode de transmission, puis comparé à la FAF95 grpmax gnomAD.",
+    pieges: "Prévalence mal estimée ; pénétrance très incomplète (seuil à relever) ; ne pas l'appliquer avec PM2.",
+    refs: [['Whiffin 2017 (PMID 28518168)', 'https://pubmed.ncbi.nlm.nih.gov/28518168/']]
+  },
+  {
+    code: 'BS2', dir: 'B', def: 'S', cat: 'pop', allowed: ['S', 'P'],
+    titre: 'Observé chez un adulte sain',
+    court: 'Pénétrance complète précoce attendue',
+    def2015: "Observé chez un adulte sain : homozygote pour un récessif, hétérozygote pour un dominant, hémizygote pour un lié à l'X, pour une maladie à pénétrance complète attendue à un âge précoce.",
+    clingen: "Plusieurs VCEP fixent un nombre minimal d'individus. Les individus de gnomAD ne sont pas garantis indemnes.",
+    outil: "Affiche les homozygotes et hémizygotes gnomAD à titre d'indice. N'est jamais appliqué automatiquement.",
+    pieges: "Pénétrance incomplète ou âge-dépendante ; phénotype léger non détecté chez les témoins.",
+    refs: []
+  },
+  {
+    code: 'BS3', dir: 'B', def: 'S', cat: 'func', allowed: ['S', 'M', 'P'],
+    titre: 'Études fonctionnelles sans effet',
+    court: 'Essai validé normal',
+    def2015: "Études fonctionnelles in vitro ou in vivo bien établies ne montrant aucun effet délétère sur la fonction protéique ou l'épissage.",
+    clingen: "Mêmes exigences de validité que PS3 (Brnich 2019).",
+    outil: "Manuel.",
+    pieges: "L'essai ne mesure qu'une fonction parmi plusieurs ; un épissage non testé.",
+    refs: [['Brnich 2019 (PMID 31892348)', 'https://pubmed.ncbi.nlm.nih.gov/31892348/']]
+  },
+  {
+    code: 'BS4', dir: 'B', def: 'S', cat: 'seg', allowed: ['S', 'P'],
+    titre: 'Absence de ségrégation',
+    court: 'Chez les apparentés atteints',
+    def2015: "Absence de ségrégation chez les membres atteints d'une famille.",
+    clingen: "Recommandations ClinGen PP1/BS4 : attention aux phénocopies (surtout pour les cancers fréquents) et aux diagnostics incertains.",
+    outil: "Manuel.",
+    pieges: "Phénocopie (ex. cancer du sein sporadique chez une apparentée non porteuse) ; erreur de diagnostic chez l'apparenté.",
+    refs: []
+  },
+  {
+    code: 'BP1', dir: 'B', def: 'P', cat: 'comp', allowed: ['P'],
+    titre: 'Faux-sens dans un gène à mécanisme tronquant',
+    court: 'Seules les troncatures causent la maladie',
+    def2015: "Faux-sens dans un gène pour lequel ce sont essentiellement des variants tronquants qui causent la maladie.",
+    clingen: "Propre au gène. Inverse de PP2.",
+    outil: "Manuel.",
+    pieges: "Faux-sens touchant un domaine critique ou un site d'épissage.",
+    refs: []
+  },
+  {
+    code: 'BP2', dir: 'B', def: 'P', cat: 'alle', allowed: ['P'],
+    titre: 'En trans (dominant) ou en cis avec un pathogène',
+    court: 'Phase avec un variant pathogène',
+    def2015: "Observé en trans avec un variant pathogène pour un gène/une maladie dominante à pénétrance complète, ou en cis avec un variant pathogène quel que soit le mode de transmission.",
+    clingen: "Prudence pour les gènes où les bi-alléliques donnent un phénotype plus sévère.",
+    outil: "Manuel.",
+    pieges: "Gènes avec un phénotype récessif ET dominant ; phase non vérifiée.",
+    refs: []
+  },
+  {
+    code: 'BP3', dir: 'B', def: 'P', cat: 'comp', allowed: ['P'],
+    titre: 'Indel en phase en région répétée',
+    court: 'Sans fonction connue',
+    def2015: "Délétion/insertion en phase dans une région répétée sans fonction connue.",
+    clingen: "Opposé de PM4.",
+    outil: "Manuel. Signalé comme alternative quand PM4 est proposé.",
+    pieges: "Expansion de répétition pathogène connue (polyAla de PHOX2B, HOXA13…).",
+    refs: []
+  },
+  {
+    code: 'BP4', dir: 'B', def: 'P', cat: 'comp', allowed: ['S', 'M', 'P'],
+    titre: 'Prédictions in silico bénignes',
+    court: 'REVEL bas + SpliceAI ≤ 0,1',
+    def2015: "Plusieurs lignes de preuves computationnelles ne suggèrent aucun impact sur le gène ou son produit.",
+    clingen: "Pejaver 2022 (REVEL) : ≤ 0,290 → Support ; ≤ 0,183 → Modéré ; ≤ 0,016 → Fort ; ≤ 0,003 → Très fort (plafonné à Fort dans l'outil). Walker 2023 : pour les faux-sens, BP4 exige aussi l'absence d'impact prédit sur l'épissage (SpliceAI ≤ 0,1).",
+    outil: "Proposé si la bande REVEL est bénigne ET si SpliceAI est disponible et ≤ 0,1. Pour les autres variants (synonymes, introniques), SpliceAI ≤ 0,1 → BP4 (Support).",
+    pieges: "Faux-sens à faible REVEL mais créant un site d'épissage ; variants profonds dans l'intron hors de la fenêtre de SpliceAI.",
+    refs: [['Pejaver 2022 (PMID 36413997)', 'https://pubmed.ncbi.nlm.nih.gov/36413997/']]
+  },
+  {
+    code: 'BP5', dir: 'B', def: 'P', cat: 'case', allowed: ['P'],
+    titre: 'Cause moléculaire alternative',
+    court: 'Autre diagnostic chez le cas',
+    def2015: "Variant trouvé chez un cas ayant une autre cause moléculaire de sa maladie.",
+    clingen: "Peu fiable pour les phénotypes fréquents ou multi-géniques (cancers, cardiopathies) et en cas de digénisme.",
+    outil: "Manuel.",
+    pieges: "Gènes de prédisposition au cancer (plusieurs variants causaux possibles chez un même patient).",
+    refs: []
+  },
+  {
+    code: 'BP6', dir: 'B', def: 'P', cat: 'rep', allowed: ['P'],
+    titre: 'Source réputée : bénin',
+    court: 'Déconseillé (ClinGen SVI)',
+    def2015: "Une source réputée rapporte le variant comme bénin, sans que les preuves soient accessibles.",
+    clingen: "Déconseillé par le SVI (Biesecker & Harrison 2018), comme PP5.",
+    outil: "Jamais proposé.",
+    pieges: "Classification ancienne fondée sur des fréquences non filtrées.",
+    refs: [['Biesecker & Harrison 2018 (PMID 29543229)', 'https://pubmed.ncbi.nlm.nih.gov/29543229/']]
+  },
+  {
+    code: 'BP7', dir: 'B', def: 'P', cat: 'comp', allowed: ['S', 'P'],
+    titre: 'Synonyme/intronique sans impact d\'épissage',
+    court: 'SpliceAI ≤ 0,1',
+    def2015: "Variant synonyme (silencieux) pour lequel les prédicteurs d'épissage ne prédisent aucun impact sur la séquence consensus ni la création d'un nouveau site, ET dont le nucléotide n'est pas très conservé.",
+    clingen: "Walker 2023 : BP7 peut s'étendre aux variants introniques en +7 et au-delà, ou en −21 et au-delà, avec SpliceAI ≤ 0,1. BP7_Strong est possible avec des données ARN. Ne pas l'appliquer dans les régions du motif d'épissage.",
+    outil: "Proposé pour les synonymes et les introniques profonds (≥ +7 / ≤ −21) si SpliceAI ≤ 0,1. La conservation n'est pas vérifiée automatiquement.",
+    pieges: "Synonymes en fin d'exon (motif donneur) ; création d'un site cryptique hors fenêtre.",
+    refs: [['Walker 2023 (PMID 37352859)', 'https://pubmed.ncbi.nlm.nih.gov/37352859/']]
+  }
+];
+const CRIT = Object.fromEntries(CRITERIA.map(c => [c.code, c]));
+
+</script>
+<script>
+/* ===== APPLICATION ===== */
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (x, d = 3) => x == null || isNaN(x) ? '—' : (Math.abs(x) > 0 && Math.abs(x) < 1e-3 ? Number(x).toExponential(2) : Number(x).toFixed(d));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const { STR_LABEL, critName, points } = CORE;
+const CLS = { P: ['Pathogène', 'var(--cP)'], LP: ['Probablement pathogène', 'var(--cLP)'], VUS: ['Signification incertaine (VUS)', 'var(--cVUS)'], LB: ['Probablement bénin', 'var(--cLB)'], B: ['Bénin', 'var(--cB)'] };
+const colorOf = (dir, str) => `var(--${dir === 'P' ? 'p' : 'b'}${dir === 'B' && str === 'VS' ? 'S' : str})`;
+const textOf = (dir, str) => `var(--t-${dir === 'P' ? 'p' : 'b'}${dir === 'B' && str === 'VS' ? 'S' : str})`;
+const chipStyle = (dir, str) => `background:${colorOf(dir, str)};color:${textOf(dir, str)}`;
+
+/* ---------- Réglages ---------- */
+const DEFAULTS = {
+  ba1: 0.05, pm2AdMaxAC: 0, pm2ArMaxAF: 0.0001,
+  prevalence: 0.0001, allelic: 0.1, genetic: 1, penetrance: 0.5,
+  ej: 50, border: 55, startProx: 150, longExon: 407,
+  ncbiKey: '', mdKey: '', theme: 'auto'
+};
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('acmgAtelier.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('acmgAtelier.' + k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } }
+};
+
+const S = {
+  settings: Object.assign({}, DEFAULTS, store.get('settings', {})),
+  mode: store.get('mode', 'AD'),
+  input: '',
+  running: false,
+  vcf: null, vep: null, csq: null, csqList: [], inputTx: null,
+  tx: null, gnomad: null, clinvar: null, md: null, broad: null, lof: null, pvs1: null,
+  src: {}, errors: [],
+  pvs1Ans: { lofMech: null, relevantTx: true, critical: null, lofFrequent: false, nmdOverride: null, altStart: false, pathUpstreamOverride: null },
+  crit: {}, props: {},
+  filter: { cat: 'all', q: '' },
+  calc: { denovo: { cs: 0, cc: 0, as: 0, ac: 0 }, pm3: { tr: 0, puP: 0, puLP: 0, hom: 0 }, pp1: { m: 0, fam: 'one' } }
+};
+CRITERIA.forEach(c => { S.crit[c.code] = { on: false, str: c.def, user: false, note: '' }; });
+
+function applyTheme() {
+  const t = S.settings.theme;
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+}
+
+/* ---------- Réseau ---------- */
+async function fetchJSON(url, opt = {}, tries = 4) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(url, opt);
+      const txt = await r.text();
+      let j = null;
+      try { j = JSON.parse(txt); } catch (e) { j = null; }
+      if (r.status === 429 || r.status >= 500 || (j === null && r.ok)) { last = new Error(`HTTP ${r.status}`); await sleep(1200 * (i + 1)); continue; }
+      if (!r.ok) { const e = new Error((j && (j.error || j.message)) || `HTTP ${r.status}`); e.status = r.status; e.body = j; throw e; }
+      return j;
+    } catch (e) {
+      last = e;
+      if (e.status && e.status < 500 && e.status !== 429) throw e;
+      await sleep(800 * (i + 1));
+    }
+  }
+  throw last;
+}
+const ENS = 'https://rest.ensembl.org';
+const ensGet = path => fetchJSON(ENS + path + (path.includes('?') ? '&' : '?') + 'content-type=application/json', { headers: { Accept: 'application/json' } });
+const ncbiKey = () => S.settings.ncbiKey ? '&api_key=' + encodeURIComponent(S.settings.ncbiKey) : '';
+let lastNcbi = 0;
+async function ncbi(url) {
+  const gap = S.settings.ncbiKey ? 120 : 380;
+  const w = lastNcbi + gap - Date.now();
+  if (w > 0) await sleep(w);
+  lastNcbi = Date.now();
+  return fetchJSON(url + ncbiKey());
+}
+
+function setSrc(k, state, msg) { S.src[k] = { state, msg }; renderSources(); }
+
+/* ---------- Pipeline d'annotation ---------- */
+async function run(input, chosenVcf) {
+  if (S.running) return;
+  const parsed = chosenVcf ? { kind: 'vcf', ...chosenVcf } : CORE.parseInput(input);
+  $('#qerr').innerHTML = '';
+  $('#rschoice').innerHTML = '';
+  if (!parsed) return;
+  if (parsed.kind === 'unknown') { showErr("Format non reconnu. Exemples acceptés : NM_000546.6:c.743G>A · ENST00000269305:c.743G>A · 17-7674220-C-T · rs11540652"); return; }
+  S.running = true; $('#go').disabled = true;
+  Object.assign(S, { vcf: null, vep: null, csq: null, csqList: [], tx: null, gnomad: null, clinvar: null, md: null, broad: null, lof: null, pvs1: null, src: {}, errors: [], inputTx: null });
+  S.pvs1Ans = { lofMech: null, relevantTx: true, critical: null, lofFrequent: false, nmdOverride: null, altStart: false, pathUpstreamOverride: null };
+  CRITERIA.forEach(c => { S.crit[c.code] = { on: false, str: c.def, user: false, note: '' }; });
+  ['vep', 'tx', 'gnomad', 'clinvar', 'md', 'splice'].forEach(k => setSrc(k, 'idle'));
+  renderAll();
+  try {
+    // 1. Coordonnées génomiques normalisées (VCF)
+    setSrc('vep', 'loading');
+    let vcf;
+    if (parsed.kind === 'vcf') vcf = { chr: parsed.chr, pos: parsed.pos, ref: parsed.ref, alt: parsed.alt };
+    else if (parsed.kind === 'rs') {
+      const d = await ensGet(`/vep/human/id/${parsed.id}?vcf_string=1`);
+      let vs = d[0] && d[0].vcf_string;
+      if (Array.isArray(vs) && vs.length > 1) {
+        setSrc('vep', 'idle');
+        $('#rschoice').innerHTML = `<span class="small muted">${esc(parsed.id)} est multi-allélique, choisissez l'allèle :</span>` + vs.map(v => `<button class="chip mono" data-vcf="${esc(v)}">${esc(v)}</button>`).join('');
+        S.running = false; $('#go').disabled = false; return;
+      }
+      vs = Array.isArray(vs) ? vs[0] : vs;
+      const [c, p, r, a] = vs.split('-'); vcf = { chr: c, pos: +p, ref: r, alt: a };
+    } else {
+      if (parsed.refseq) S.inputTx = parsed.hgvs.split(':')[0];
+      const d = await ensGet(`/vep/human/hgvs/${encodeURIComponent(parsed.hgvs)}?vcf_string=1${parsed.refseq ? '&refseq=1' : ''}`);
+      const vs = d[0] && d[0].vcf_string;
+      if (!vs) throw new Error('VEP n\'a pas renvoyé de coordonnées pour ce HGVS');
+      const [c, p, r, a] = (Array.isArray(vs) ? vs[0] : vs).split('-'); vcf = { chr: c, pos: +p, ref: r, alt: a };
+    }
+    S.vcf = vcf;
+    // 2. Annotation VEP (transcrits Ensembl + plugins)
+    const body = { variants: [`${vcf.chr} ${vcf.pos} . ${vcf.ref} ${vcf.alt} . . .`], REVEL: 1, AlphaMissense: 1, SpliceAI: 2, LOEUF: 1, mane: 1, hgvs: 1, numbers: 1, vcf_string: 1, canonical: 1, domains: 1, protein: 1, shift_hgvs: 1 };
+    const vep = await fetchJSON(ENS + '/vep/human/region', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) });
+    S.vep = vep[0];
+    const tcs = (S.vep.transcript_consequences || []).filter(t => /^ENST/.test(t.transcript_id));
+    // Exclure les gènes voisins où le variant est seulement en amont/aval (ex. TAS1R3 à côté de DVL1)
+    const FAR = ['upstream_gene_variant', 'downstream_gene_variant', 'intergenic_variant'];
+    const overlaps = t => (t.consequence_terms || []).some(x => !FAR.includes(x));
+    const coding = tcs.filter(t => t.biotype === 'protein_coding');
+    S.csqList = coding.filter(overlaps).length ? coding.filter(overlaps) : coding;
+    let csq = null;
+    if (S.inputTx) csq = S.csqList.find(t => t.mane_select && t.mane_select.split('.')[0] === S.inputTx.split('.')[0]);
+    csq = csq || S.csqList.find(t => t.mane_select) || S.csqList.find(t => t.canonical) || S.csqList[0] || tcs[0];
+    if (!csq) throw new Error('Aucun transcrit codant chevauchant ce variant (intergénique ?)');
+    S.csq = csq;
+    setSrc('vep', 'ok');
+    renderAll();
+    await annotateTranscript();
+  } catch (e) {
+    console.error(e);
+    setSrc('vep', 'err', e.message);
+    showErr('Annotation impossible : ' + esc(e.message || e));
+  } finally {
+    S.running = false; $('#go').disabled = false;
+    recompute();
+  }
+}
+
+async function annotateTranscript() {
+  const csq = S.csq, vcf = S.vcf;
+  S.tx = null; S.lof = null; S.clinvar = null;
+  // Requêtes parallèles indépendantes du transcrit
+  const pG = S.gnomad ? Promise.resolve() : loadGnomad();
+  const pM = S.md ? Promise.resolve() : loadMobiDetails();
+  // Structure du transcrit
+  setSrc('tx', 'loading');
+  try {
+    const [lk, cdna, cds] = await Promise.all([
+      ensGet(`/lookup/id/${csq.transcript_id}?expand=1&utr=1`),
+      ensGet(`/sequence/id/${csq.transcript_id}?type=cdna`),
+      ensGet(`/sequence/id/${csq.transcript_id}?type=cds`).catch(() => ({ seq: '' }))
+    ]);
+    if (lk.Translation) {
+      S.tx = CORE.buildTx(lk, cdna.seq, cds.seq);
+      setSrc('tx', S.tx.seqOk ? 'ok' : 'err', S.tx.seqOk ? '' : 'Séquence incohérente');
+    } else setSrc('tx', 'skip', 'Transcrit non codant');
+  } catch (e) { setSrc('tx', 'err', e.message); }
+  // LoF
+  if (S.tx && S.tx.seqOk) {
+    S.lof = CORE.analyzeLoF(S.tx, vcf, csq, { ej: S.settings.ej, border: S.settings.border, startProx: S.settings.startProx, longExon: S.settings.longExon });
+  }
+  renderAll();
+  await loadClinvar();
+  await Promise.all([pG, pM]);
+  await loadSplice();
+  recompute();
+}
+
+async function loadGnomad() {
+  setSrc('gnomad', 'loading');
+  const v = S.vcf;
+  const id = `${v.chr}-${v.pos}-${v.ref}-${v.alt}`;
+  const f = 'ac an homozygote_count hemizygote_count filters faf95{popmax popmax_population}';
+  const q = `query($id:String!){variant(variantId:$id,dataset:gnomad_r4){variant_id rsids exome{${f} populations{id ac an homozygote_count}} genome{${f} populations{id ac an homozygote_count}} joint{${f}}}}`;
+  try {
+    const r = await fetch('https://gnomad.broadinstitute.org/api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q, variables: { id } }) });
+    const j = await r.json();
+    const nf = (j.errors || []).some(e => /not found/i.test(e.message));
+    if (nf || (j.data && j.data.variant === null)) {
+      S.gnomad = { found: false, id };
+      setSrc('gnomad', 'ok', 'absent');
+    } else if (j.errors) throw new Error(j.errors[0].message);
+    else {
+      const d = j.data.variant;
+      const joint = d.joint || {};
+      const ex = d.exome || {}, ge = d.genome || {};
+      const ac = joint.ac != null ? joint.ac : (ex.ac || 0) + (ge.ac || 0);
+      const an = joint.an != null ? joint.an : (ex.an || 0) + (ge.an || 0);
+      const fafs = [joint.faf95, ex.faf95, ge.faf95].filter(x => x && x.popmax != null);
+      const faf = joint.faf95 && joint.faf95.popmax != null ? joint.faf95 : fafs.sort((a, b) => b.popmax - a.popmax)[0];
+      const pops = {};
+      for (const src of [ex.populations || [], ge.populations || []]) for (const p of src) {
+        if (/_X[XY]$|^X[XY]$/.test(p.id)) continue;
+        pops[p.id] = pops[p.id] || { id: p.id, ac: 0, an: 0, hom: 0 };
+        pops[p.id].ac += p.ac; pops[p.id].an += p.an; pops[p.id].hom += p.homozygote_count || 0;
+      }
+      S.gnomad = {
+        found: true, id, ac, an, af: an ? ac / an : null,
+        hom: joint.homozygote_count != null ? joint.homozygote_count : (ex.homozygote_count || 0) + (ge.homozygote_count || 0),
+        hemi: joint.hemizygote_count != null ? joint.hemizygote_count : (ex.hemizygote_count || 0) + (ge.hemizygote_count || 0),
+        faf: faf ? faf.popmax : null, fafPop: faf ? faf.popmax_population : null,
+        filters: [...new Set([...(joint.filters || []), ...(ex.filters || []), ...(ge.filters || [])])],
+        exome: ex.ac != null ? { ac: ex.ac, an: ex.an } : null, genome: ge.ac != null ? { ac: ge.ac, an: ge.an } : null,
+        pops: Object.values(pops).filter(p => p.an > 0).sort((a, b) => (b.ac / b.an) - (a.ac / a.an))
+      };
+      setSrc('gnomad', 'ok');
+    }
+  } catch (e) { S.gnomad = { error: e.message }; setSrc('gnomad', 'err', e.message); }
+  renderAll();
+}
+
+async function loadMobiDetails() {
+  setSrc('md', 'loading');
+  const g = CORE.vcfToGHgvs(S.vcf);
+  const base = 'https://mobidetails.chu-montpellier.fr';
+  try {
+    if (!g) throw new Error('chromosome non pris en charge');
+    const ex = await fetchJSON(`${base}/api/variant/exists/${encodeURIComponent(g)}`, {}, 2);
+    if (ex && ex.mobidetails_id) {
+      const d = await fetchJSON(`${base}/api/variant/${ex.mobidetails_id}/cli/`, {}, 2);
+      S.md = { id: ex.mobidetails_id, url: `${base}/api/variant/${ex.mobidetails_id}/browser/`, d };
+      setSrc('md', 'ok');
+    } else { S.md = { absent: true, g }; setSrc('md', 'skip', 'variant absent de MobiDetails'); }
+  } catch (e) { S.md = { error: e.message, g }; setSrc('md', 'err', e.message); }
+  renderAll();
+}
+
+async function mdCreate() {
+  const g = CORE.vcfToGHgvs(S.vcf), gene = S.csq && S.csq.gene_symbol;
+  if (!S.settings.mdKey) { toast('Ajoutez votre clé API MobiDetails dans Paramètres'); return; }
+  try {
+    setSrc('md', 'loading');
+    const fd = new URLSearchParams({ variant_ghgvs: g, gene_hgnc: gene, caller: 'cli', api_key: S.settings.mdKey });
+    const r = await fetchJSON('https://mobidetails.chu-montpellier.fr/api/variant/create_g', { method: 'POST', body: fd }, 1);
+    if (r && r.mobidetails_id) { S.md = null; await loadMobiDetails(); await loadSplice(); recompute(); }
+    else throw new Error((r && r.mobidetails_error) || 'réponse inattendue');
+  } catch (e) { setSrc('md', 'err', e.message); toast('MobiDetails : ' + e.message); }
+}
+
+async function clinvarRange(chr, lo, hi, max = 300) {
+  const term = `${chr}[chr] AND ${lo}:${hi}[chrpos38]`;
+  const es = await ncbi(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=clinvar&retmode=json&retmax=${max}&term=${encodeURIComponent(term)}`);
+  const ids = (es.esearchresult && es.esearchresult.idlist) || [];
+  if (!ids.length) return [];
+  const out = [];
+  for (let i = 0; i < ids.length; i += 150) {
+    const sm = await ncbi(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=clinvar&retmode=json&id=${ids.slice(i, i + 150).join(',')}`);
+    for (const uid of (sm.result && sm.result.uids) || []) {
+      const r = sm.result[uid], gc = r.germline_classification || {};
+      out.push({ uid, acc: r.accession, title: r.title, germline: gc.description || '', review: gc.review_status || '', spdi: r.variation_set && r.variation_set[0] && r.variation_set[0].canonical_spdi, conds: (gc.trait_set || []).map(t => t.trait_name).slice(0, 3) });
+    }
+  }
+  return out;
+}
+
+async function loadClinvar() {
+  setSrc('clinvar', 'loading');
+  const v = S.vcf, csq = S.csq, tx = S.tx;
+  const res = { exact: [], codon: null, upstream: null };
+  try {
+    const lo = v.pos, hi = v.pos + Math.max(v.ref.length, 1) - 1;
+    const recs = await clinvarRange(v.chr, lo, hi);
+    const spdi = CORE.vcfToSpdi(v);
+    const cOurs = csq.hgvsc ? csq.hgvsc.split(':')[1] : null;
+    res.exact = recs.filter(r => r.spdi === spdi || (cOurs && CORE.parseClinvarTitle(r.title).c === cOurs && sameBase(CORE.parseClinvarTitle(r.title).tx, csq.mane_select)));
+    // Codon (faux-sens) → PS1 / PM5
+    const terms = csq.consequence_terms || [];
+    if (tx && csq.protein_start && (terms.includes('missense_variant'))) {
+      const cs = (csq.protein_start - 1) * 3 + 1;
+      const gs = [cs, cs + 1, cs + 2].map(c => CORE.cToG(tx, c)).filter(x => x != null);
+      const crec = await clinvarRange(v.chr, Math.min(...gs), Math.max(...gs));
+      const aa = (csq.amino_acids || '').split('/');
+      const ours = { ref3: CORE.AA3[aa[0]], alt3: CORE.AA3[aa[1]], pos: csq.protein_start, c: cOurs, txBase: (csq.mane_select || '').split('.')[0] || null, spdi };
+      res.codon = CORE.codonEvidence(crec, ours);
+      res.codon.n = crec.length;
+    }
+    // Perte du start → variants P/LP en amont de la Met alternative
+    if (tx && S.lof && S.lof.type === 'start' && S.lof.nextMet) {
+      const cEnd = (S.lof.nextMet - 1) * 3;
+      const gA = CORE.cToG(tx, 4), gB = CORE.cToG(tx, Math.max(4, cEnd));
+      if (gA != null && gB != null) {
+        const up = await clinvarRange(v.chr, Math.min(gA, gB), Math.max(gA, gB), 500);
+        res.upstream = up.filter(r => {
+          const t = CORE.parseClinvarTitle(r.title); const m = /^c\.(\d+)/.exec(t.c || '');
+          const sig = CORE.clinsigRank(r.germline);
+          return m && +m[1] >= 4 && +m[1] <= cEnd && ['P', 'LP', 'P/LP'].includes(sig) && sameBase(t.tx, csq.mane_select);
+        });
+      }
+    }
+    S.clinvar = res;
+    setSrc('clinvar', 'ok');
+  } catch (e) { S.clinvar = { error: e.message, exact: [] }; setSrc('clinvar', 'err', e.message); }
+  renderAll();
+}
+const sameBase = (a, b) => !a || !b || a.split('.')[0] === b.split('.')[0];
+
+async function loadSplice() {
+  const csq = S.csq;
+  if (csq && csq.spliceai) { setSrc('splice', 'ok', 'VEP (pré-calculé)'); return; }
+  const mdS = S.md && S.md.d && S.md.d.splicingPredictions;
+  if (mdS && mdS.spliceai_DS_AG != null && mdS.spliceai_DS_AG !== 'None') { setSrc('splice', 'ok', 'MobiDetails'); return; }
+  setSrc('splice', 'skip', 'non pré-calculé : bouton « Calculer »');
+}
+async function loadBroad() {
+  const v = S.vcf;
+  setSrc('splice', 'loading', 'SpliceAI-lookup (Broad)');
+  try {
+    const url = `https://spliceai-38-xwkwwwxdwq-uc.a.run.app/spliceai/?hg=38&distance=500&mask=0&variant=chr${v.chr}-${v.pos}-${v.ref}-${v.alt}`;
+    const j = await fetchJSON(url, {}, 2);
+    const found = [];
+    (function walk(o) { if (o && typeof o === 'object') { if ('DS_AG' in o || 'DS_DL' in o) found.push(o); for (const k in o) walk(o[k]); } })(j);
+    if (!found.length) throw new Error('format de réponse inattendu');
+    const best = found.map(o => ({ o, m: CORE.spliceMax(o) })).sort((a, b) => b.m - a.m)[0];
+    S.broad = best.o;
+    setSrc('splice', 'ok', 'SpliceAI-lookup (Broad)');
+  } catch (e) { setSrc('splice', 'err', 'Broad : ' + e.message); toast('SpliceAI-lookup inaccessible : utilisez le lien externe'); }
+  recompute();
+}
+
+/* ---------- Données dérivées ---------- */
+function spliceData() {
+  const c = S.csq;
+  if (c && c.spliceai) return { src: 'VEP · SpliceAI pré-calculé (MANE, scores bruts)', s: c.spliceai };
+  const m = S.md && S.md.d && S.md.d.splicingPredictions;
+  if (m && m.spliceai_DS_AG != null && m.spliceai_DS_AG !== 'None') {
+    return { src: 'MobiDetails', s: { DS_AG: m.spliceai_DS_AG, DS_AL: m.spliceai_DS_AL, DS_DG: m.spliceai_DS_DG, DS_DL: m.spliceai_DS_DL, DP_AG: m.spliceai_DP_AG, DP_AL: m.spliceai_DP_AL, DP_DG: m.spliceai_DP_DG, DP_DL: m.spliceai_DP_DL } };
+  }
+  if (S.broad) return { src: 'SpliceAI-lookup (Broad, distance 500, brut)', s: S.broad };
+  return null;
+}
+function revelScore() {
+  if (S.csq && S.csq.revel != null) return { v: +S.csq.revel, src: 'VEP (REVEL)' };
+  const m = S.md && S.md.d && S.md.d.missensePredictions;
+  if (m && m.revelScore != null && !isNaN(parseFloat(m.revelScore))) return { v: parseFloat(m.revelScore), src: 'MobiDetails' };
+  return null;
+}
+function bs1Threshold() {
+  const s = S.settings;
+  return CORE.maxCredibleAF(S.mode === 'AR' ? 'AR' : 'AD', s.prevalence, s.allelic, s.genetic, s.penetrance);
+}
+function intronOffset(hgvsc) {
+  const m = /c\.[-*]?\d+([+-])(\d+)/.exec(hgvsc || '');
+  return m ? { sign: m[1], n: +m[2] } : null;
+}
+
+/* ---------- Propositions automatiques ---------- */
+function propose() {
+  const P = {};
+  const csq = S.csq; if (!csq) return P;
+  const terms = csq.consequence_terms || [];
+  const st = S.settings;
+  // --- Population
+  const g = S.gnomad;
+  if (g && !g.error) {
+    if (!g.found) {
+      P.PM2 = { str: 'P', why: `Absent de gnomAD v4 (exomes + génomes)${S.mode === '?' ? ' — mode de transmission inconnu : règle « dominant » appliquée' : ''}.` };
+    } else {
+      const faf = g.faf;
+      const thr = bs1Threshold();
+      if (faf != null && faf > st.ba1) P.BA1 = { str: 'SA', why: `FAF95 grpmax = ${fmt(faf, 4)} (${g.fafPop}) > ${st.ba1}.` };
+      else if (thr && faf != null && faf > thr) P.BS1 = { str: 'S', pending: true, why: `FAF95 grpmax = ${fmt(faf)} (${g.fafPop}) > fréquence maximale crédible ${fmt(thr)} (Whiffin, mode ${S.mode === 'AR' ? 'récessif' : 'dominant'}). Ce seuil dépend de la prévalence, de l'hétérogénéité et de la pénétrance saisies dans Paramètres : ajustez-les à la maladie, puis activez BS1 vous-même.` };
+      else if (S.mode === 'AR') {
+        if (g.af != null && g.af <= st.pm2ArMaxAF) P.PM2 = { str: 'P', why: `AF gnomAD = ${fmt(g.af)} ≤ seuil récessif ${st.pm2ArMaxAF} (AC = ${g.ac}).` };
+      } else if (g.ac <= st.pm2AdMaxAC) P.PM2 = { str: 'P', why: `AC gnomAD = ${g.ac} ≤ ${st.pm2AdMaxAC} (règle dominant/lié à l'X).` };
+    }
+  }
+  // --- PVS1 (arbre)
+  let pvsActive = false;
+  if (S.lof && !S.lof.error) {
+    const ans = pvs1Answers();
+    const t = CORE.pvs1Tree(S.lof, ans);
+    S.pvs1 = t;
+    if (t.str && t.str !== 'NA') {
+      P.PVS1 = { str: t.str, why: `Arbre Abou Tayoun : ${t.path.map(p => p.a).join(' → ')}.`, pending: t.pending };
+      pvsActive = true; // en attente ou non : PP3 (épissage) n'est pas proposé tant que PVS1 reste envisageable
+    }
+  } else S.pvs1 = S.lof && S.lof.error ? { str: null, path: [], reason: S.lof.error } : null;
+  const userPVS = S.crit.PVS1 && S.crit.PVS1.user && S.crit.PVS1.on;
+  if (userPVS) pvsActive = true;
+  // --- PM4
+  const inframe = terms.some(t => ['inframe_deletion', 'inframe_insertion', 'stop_lost', 'protein_altering_variant'].includes(t));
+  if (inframe && !pvsActive && !terms.includes('frameshift_variant')) {
+    P.PM4 = { str: 'M', why: `Conséquence : ${terms.join(', ')}. Vérifier l'absence de région répétée (sinon BP3).` };
+  }
+  // --- In silico
+  const sd = spliceData();
+  const sMax = sd ? CORE.spliceMax(sd.s) : null;
+  const rv = revelScore();
+  const isMis = terms.includes('missense_variant');
+  const lofT = CORE.lofType(terms);
+  if (isMis) {
+    const b = rv ? CORE.revelBand(rv.v) : null;
+    if (b && b.dir === 'P') P.PP3 = { str: b.str, why: `REVEL ${rv.v.toFixed(3)} → ${critName('PP3', 'P', b.str)} (Pejaver 2022).` };
+    else if (sMax != null && sMax >= 0.2) P.PP3 = { str: 'P', why: `SpliceAI Δmax ${sMax.toFixed(2)} ≥ 0,2 → PP3 (épissage, Walker 2023).` };
+    else if (b && b.dir === 'B') {
+      if (sMax != null && sMax <= 0.1) P.BP4 = { str: b.str, why: `REVEL ${rv.v.toFixed(3)} → ${critName('BP4', 'P', b.str)}${b.raw === 'VS' ? ' (Très fort plafonné à Fort)' : ''} et SpliceAI Δmax ${sMax.toFixed(2)} ≤ 0,1.` };
+      else if (sMax == null) S._bp4Note = 'REVEL bénin, mais SpliceAI indisponible : BP4 non proposé (Walker 2023 exige l\'absence d\'impact d\'épissage).';
+    }
+  } else if (lofT) {
+    if (!pvsActive && sMax != null && sMax >= 0.2 && lofT === 'splice') P.PP3 = { str: 'P', why: `PVS1 non appliqué ; SpliceAI Δmax ${sMax.toFixed(2)} ≥ 0,2.` };
+  } else if (!inframe) {
+    if (sMax != null && sMax >= 0.2) P.PP3 = { str: 'P', why: `SpliceAI Δmax ${sMax.toFixed(2)} ≥ 0,2 → PP3 (épissage).` };
+    else if (sMax != null && sMax <= 0.1) {
+      P.BP4 = { str: 'P', why: `SpliceAI Δmax ${sMax.toFixed(2)} ≤ 0,1.` };
+      const io = intronOffset(csq.hgvsc);
+      const deep = io && ((io.sign === '+' && io.n >= 7) || (io.sign === '-' && io.n >= 21));
+      if (terms.includes('synonymous_variant') || deep) P.BP7 = { str: 'P', why: `${terms.includes('synonymous_variant') ? 'Synonyme' : 'Intronique profond (' + io.sign + io.n + ')'} sans impact d'épissage prédit (SpliceAI ≤ 0,1). Conservation non vérifiée.` };
+    }
+  }
+  // --- ClinVar : PS1 / PM5
+  const cv = S.clinvar && S.clinvar.codon;
+  if (cv && isMis) {
+    const spliceWarn = sMax != null && sMax >= 0.2 ? ' ⚠ SpliceAI ≥ 0,2 pour ce variant : vérifier qu\'il n\'agit pas par l\'épissage.' : '';
+    if (cv.ps1.length) {
+      const anyP = cv.ps1.some(r => r.sig === 'P' || r.sig === 'P/LP');
+      P.PS1 = { str: anyP ? 'S' : 'M', why: `ClinVar : ${cv.ps1.map(r => `${r.c} (${r.germline}, ${'★'.repeat(r.stars) || '0★'})`).join(' ; ')}.${spliceWarn}` };
+    } else if (cv.pm5.length) {
+      const anyP = cv.pm5.some(r => r.sig === 'P' || r.sig === 'P/LP');
+      P.PM5 = { str: anyP ? 'M' : 'P', why: `Autres faux-sens P/LP au résidu ${cv.pm5[0].ref}${cv.pm5[0].pos} : ${[...new Set(cv.pm5.map(r => 'p.' + r.ref + r.pos + r.alt))].join(', ')}.${spliceWarn}` };
+    }
+  }
+  return P;
+}
+
+function pvs1Answers() {
+  const a = S.pvs1Ans, lof = S.lof;
+  const nmdAuto = lof && lof.nmd ? lof.nmd.verdict !== 'escape' : false;
+  const upAuto = !!(S.clinvar && S.clinvar.upstream && S.clinvar.upstream.length);
+  return {
+    lofMech: a.lofMech, relevantTx: a.relevantTx, critical: a.critical, lofFrequent: a.lofFrequent,
+    nmd: a.nmdOverride != null ? a.nmdOverride : nmdAuto, nmdSrc: a.nmdOverride != null ? 'user' : 'auto',
+    gt10: lof ? (lof.removedFrac || 0) > 0.1 : false,
+    altStart: a.altStart,
+    pathUpstream: a.pathUpstreamOverride != null ? a.pathUpstreamOverride : upAuto,
+    pathUpstreamSrc: a.pathUpstreamOverride != null ? 'user' : (S.clinvar && S.clinvar.upstream ? 'auto' : 'user')
+  };
+}
+
+function recompute() {
+  S._bp4Note = null;
+  S.props = propose();
+  for (const c of CRITERIA) {
+    const st = S.crit[c.code], p = S.props[c.code];
+    if (st.user) continue;
+    st.on = !!(p && !p.pending);
+    st.str = p ? p.str : c.def;
+  }
+  // PVS1 actif → retirer PP3/PM4 proposés automatiquement
+  if (S.crit.PVS1.on) {
+    for (const k of ['PP3', 'PM4']) if (!S.crit[k].user && S.crit[k].on && S.props[k]) S.crit[k].on = false;
+  }
+  renderAll();
+}
+
+/* ---------- Évaluation & avertissements ---------- */
+function appliedList() {
+  return CRITERIA.filter(c => S.crit[c.code].on).map(c => ({ code: c.code, dir: c.dir, str: S.crit[c.code].str, def: c.def }));
+}
+function warnings(applied) {
+  const W = [];
+  const on = c => applied.some(a => a.code === c);
+  const pair = (a, b, msg) => { if (on(a) && on(b)) W.push(msg); };
+  pair('PVS1', 'PP3', 'PVS1 + PP3 : double comptage du même mécanisme (Walker 2023 / Abou Tayoun 2018).');
+  pair('PVS1', 'PM4', 'PVS1 + PM4 : ne pas cumuler (même effet sur la protéine).');
+  pair('PS1', 'PM5', 'PS1 et PM5 sont mutuellement exclusifs.');
+  pair('PS2', 'PM6', 'PS2 et PM6 sont mutuellement exclusifs pour une même observation.');
+  pair('PP3', 'BP4', 'PP3 et BP4 sont contradictoires.');
+  pair('PS3', 'BS3', 'PS3 et BS3 sont contradictoires.');
+  pair('PP1', 'BS4', 'PP1 et BS4 sont contradictoires.');
+  pair('PP2', 'BP1', 'PP2 et BP1 reposent sur des logiques de gène opposées.');
+  pair('PM4', 'BP3', 'PM4 et BP3 sont contradictoires (région répétée ou non).');
+  if (on('PM2') && (on('BS1') || on('BA1'))) W.push('PM2 avec BS1/BA1 : incohérent.');
+  if (on('PM1') && on('PP3')) W.push('PM1 + PP3 : la somme est plafonnée à Fort (4 points) dans le calcul.');
+  if (on('PP5') || on('BP6')) W.push('PP5/BP6 : déconseillés par le ClinGen SVI (2018).');
+  if (on('PM3') && S.mode === 'AD') W.push('PM3 concerne les maladies récessives (mode actuel : dominant).');
+  if (on('PS4') && S.mode === 'AR') W.push('Maladie récessive : préférer PM3 aux comptes de cas PS4.');
+  if (on('BA1') && S.csq && S.csq.gene_symbol === 'HFE') W.push('HFE : certains variants (p.Cys282Tyr) figurent dans la liste d\'exceptions BA1 (Ghosh 2018).');
+  if (S.props.PVS1 && S.props.PVS1.pending && !on('PVS1')) W.push('PVS1 proposé en attente : confirmez que la perte de fonction est un mécanisme connu (panneau NMD / PVS1).');
+  if (S.props.BS1 && S.props.BS1.pending && !on('BS1')) W.push('BS1 possible : la FAF dépasse le seuil de Whiffin calculé avec les paramètres génériques. Ajustez-les à la maladie puis confirmez.');
+  if (S._bp4Note) W.push(S._bp4Note);
+  if (S.gnomad && S.gnomad.found && S.gnomad.filters && S.gnomad.filters.length) W.push('gnomAD signale des filtres qualité : ' + S.gnomad.filters.join(', ') + '.');
+  if (S.inputTx && S.csq && S.csq.mane_select && !sameBase(S.inputTx, S.csq.mane_select)) W.push(`Le transcrit saisi (${S.inputTx}) n'est pas le MANE Select (${S.csq.mane_select}) : l'analyse utilise ${S.csq.transcript_id}.`);
+  return W;
+}
+
+/* ---------- Rendu ---------- */
+function renderAll() {
+  renderSources(); renderVerdict(); renderVariant(); renderMatrix(); renderLoF(); renderEvidence();
+}
+
+function renderSources() {
+  const names = { vep: 'Ensembl VEP', tx: 'Transcrit', gnomad: 'gnomAD v4', clinvar: 'ClinVar', md: 'MobiDetails', splice: 'SpliceAI' };
+  const el = $('#sources');
+  if (!Object.keys(S.src).length) { el.innerHTML = ''; return; }
+  el.innerHTML = Object.keys(names).map(k => {
+    const s = S.src[k] || { state: 'idle' };
+    return `<span class="src ${s.state}" title="${esc(s.msg || '')}"><i></i>${names[k]}${s.msg && s.state !== 'loading' ? ' · ' + esc(s.msg) : ''}</span>`;
+  }).join('');
+}
+
+function renderVerdict() {
+  const ap = appliedList();
+  const c15 = CORE.classify2015(ap);
+  const pts = CORE.classifyPoints(ap);
+  const main = pts.cls;
+  const [lbl, col] = CLS[main];
+  const pos = Math.max(-10, Math.min(12, pts.total));
+  const pct = ((pos + 10) / 22) * 100;
+  const W = warnings(ap);
+  const disagree = c15.cls !== pts.cls;
+  const ticks = [-7, 0, 6, 10].map(t => `<span style="left:${((t + 10) / 22) * 100}%">${t}</span>`).join('');
+  $('#verdict').innerHTML = `
+    <div class="kicker">Classification (système de points)</div>
+    <div class="vclass"><span class="big" style="color:${col}">${main}</span><span style="font-weight:600">${lbl}${pts.tier ? ' · ' + pts.tier : ''}</span></div>
+    <div class="vsub">${pts.total > 0 ? '+' : ''}${pts.total} points${pts.capNote ? ' · ' + esc(pts.capNote) : ''}</div>
+    <div class="gauge" aria-hidden="true"><div class="bar"></div><div class="needle" style="left:calc(${pct}% - 1.5px)"></div><div class="ticks">${ticks}</div></div>
+    <div class="vrow" style="margin-top:22px"><span>Règles ACMG 2015 (+ SVI)</span><b style="color:${CLS[c15.cls][1]}">${c15.cls}</b></div>
+    <div class="small muted" style="margin-top:-2px">${esc(c15.rule)}</div>
+    ${disagree ? `<div class="alert warn small">Les deux systèmes divergent : ${c15.cls} (2015) vs ${pts.cls} (points). Examinez la combinaison des critères.</div>` : ''}
+    <div class="applied">${ap.length ? ap.map(a => `<span class="tag" data-open="${a.code}" style="${chipStyle(a.dir, a.str)}">${critName(a.code, a.def, a.str)} <span style="opacity:.75">${points(a.dir, a.str) > 0 ? '+' : ''}${points(a.dir, a.str)}</span></span>`).join('') : '<span class="small muted">Aucun critère appliqué. Lancez une analyse ou cochez des critères.</span>'}
+      ${Object.entries(S.props).filter(([k, p]) => p.pending && !S.crit[k].on).map(([k]) => `<span class="tag pending" data-open="${k}">${k} ?</span>`).join('')}</div>
+    ${W.length ? `<div class="warnings">${W.map(w => `<div class="wline">${esc(w)}</div>`).join('')}</div>` : ''}
+    <div class="vrow" style="margin-top:12px"><button class="btn ghost sm" id="resetProps">Revenir aux propositions</button><button class="btn ghost sm" id="clearAll">Tout décocher</button></div>
+    <p class="disclaimer" style="margin-top:10px">Outil d'aide à l'interprétation et d'apprentissage. Les propositions automatiques doivent être validées par un généticien ; les spécifications VCEP du gène priment sur les règles générales.</p>`;
+}
+
+function renderVariant() {
+  const el = $('#variantCard');
+  const csq = S.csq, v = S.vcf;
+  if (!csq || !v) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const vs = `${v.chr}-${v.pos}-${v.ref}-${v.alt}`;
+  const cpart = csq.hgvsc ? csq.hgvsc.split(':')[1] : '';
+  const ppart = csq.hgvsp ? csq.hgvsp.split(':')[1] : '';
+  const nm = csq.mane_select || '';
+  const rs = (S.vep.colocated_variants || []).find(x => /^rs/.test(x.id));
+  const md = S.md && S.md.d;
+  const gene = csq.gene_symbol || '';
+  const hgnc = csq.hgnc_id || '';
+  const links = [
+    ['gnomAD', `https://gnomad.broadinstitute.org/variant/${vs}?dataset=gnomad_r4`],
+    ['ClinVar', S.clinvar && S.clinvar.exact && S.clinvar.exact[0] ? `https://www.ncbi.nlm.nih.gov/clinvar/variation/${S.clinvar.exact[0].uid}/` : `https://www.ncbi.nlm.nih.gov/clinvar/?term=${encodeURIComponent(gene + '[gene] AND ' + (cpart || ''))}`],
+    ['MobiDetails', S.md && S.md.url ? S.md.url : 'https://mobidetails.chu-montpellier.fr/'],
+    ['SpliceAI-lookup', `https://spliceailookup.broadinstitute.org/#variant=${vs}&hg=38&distance=500&mask=0`],
+    ['Franklin', `https://franklin.genoox.com/clinical-db/variant/snp/chr${vs}-hg38`],
+    ['VarSome', `https://varsome.com/variant/hg38/chr${vs}`],
+    rs ? ['LitVar2', `https://www.ncbi.nlm.nih.gov/research/litvar2/docsum?text=${rs.id}`] : null,
+    rs && rs.pubmed ? [`PubMed (${rs.pubmed.length})`, `https://pubmed.ncbi.nlm.nih.gov/?term=${rs.pubmed.slice(0, 200).join('+OR+')}`] : null,
+    hgnc ? ['ClinGen (gène)', `https://search.clinicalgenome.org/kb/genes/${hgnc}`] : null,
+    hgnc ? ['ClinGen Dosage', `https://search.clinicalgenome.org/kb/gene-dosage/${hgnc}`] : null,
+    md && md.gene && md.gene.clingenCriteriaSpec ? ['CSpec VCEP ' + md.gene.clingenCriteriaSpec, `https://cspec.genome.network/cspec/ui/svi/svi/${md.gene.clingenCriteriaSpec}`] : ['CSpec (VCEP)', 'https://cspec.genome.network/cspec/ui/svi/'],
+    ['GeneReviews', `https://www.ncbi.nlm.nih.gov/books/NBK1116/?term=${encodeURIComponent(gene)}`],
+    ['OMIM', `https://www.omim.org/search?search=${encodeURIComponent(gene)}`],
+    md && md.gene && md.gene.uniprotId ? ['UniProt', `https://www.uniprot.org/uniprotkb/${md.gene.uniprotId}`] : null
+  ].filter(Boolean);
+  const opts = S.csqList.map(t => `<option value="${t.transcript_id}" ${t === csq ? 'selected' : ''}>${t.transcript_id}${t.mane_select ? ' · MANE ' + t.mane_select : ''}${t.canonical ? ' · canonique' : ''} · ${(t.consequence_terms || []).join(',')}</option>`).join('');
+  el.innerHTML = `<div class="hd"><h2>Variant</h2><div class="sp"><select class="txsel" id="txsel" aria-label="Transcrit">${opts}</select></div></div>
+  <div class="bd">
+    <div class="vhead"><span class="gene">${esc(gene)}</span><span class="hg">${esc(nm || csq.transcript_id)}:${esc(cpart)}</span><span class="hg muted">${esc(ppart)}</span></div>
+    <div class="facts">
+      <div class="fact"><div class="k">Conséquence</div><div class="v">${esc((csq.consequence_terms || []).join(', '))}</div></div>
+      <div class="fact"><div class="k">${csq.exon ? 'Exon' : 'Intron'}</div><div class="v">${esc(csq.exon || csq.intron || '—')}</div></div>
+      <div class="fact"><div class="k">GRCh38 (VCF)</div><div class="v">${esc(vs)}</div></div>
+      <div class="fact"><div class="k">Transcrit Ensembl</div><div class="v">${esc(csq.transcript_id)}</div></div>
+      <div class="fact"><div class="k">dbSNP</div><div class="v">${rs ? esc(rs.id) : '—'}</div></div>
+      <div class="fact"><div class="k">LOEUF (gnomAD)</div><div class="v">${csq.loeuf != null ? fmt(csq.loeuf, 2) : '—'}</div></div>
+    </div>
+    <div class="links">${links.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a>`).join('')}</div>
+  </div>`;
+}
+
+const COLS_P = ['VS', 'S', 'M', 'P'], COLS_B = ['SA', 'S', 'P'];
+const FILL_AUTO = ['PM2', 'BA1', 'PP3', 'BP4', 'BP7', 'PS1', 'PM5', 'PM4'], FILL_SEMI = ['PVS1', 'BS1', 'PM1'], FILL_DEP = ['PP5', 'BP6'];
+const fillOf = code => FILL_AUTO.includes(code) ? 'auto' : FILL_SEMI.includes(code) ? 'semi' : FILL_DEP.includes(code) ? 'dep' : 'man';
+function renderMatrix() {
+  const f = S.filter;
+  const match = c => (f.cat === 'all' || (f.cat === 'mine' ? ['man', 'semi'].includes(fillOf(c.code)) : c.cat === f.cat)) && (!f.q || (c.code + ' ' + c.titre + ' ' + c.court).toLowerCase().includes(f.q.toLowerCase()));
+  const card = c => {
+    const st = S.crit[c.code], p = S.props[c.code];
+    const name = critName(c.code, c.def, st.str);
+    const bg = st.on ? chipStyle(c.dir, st.str) : '';
+    const badges = [];
+    if (st.on && st.str !== c.def) badges.push(`<span class="bdg">${STR_LABEL[st.str]}</span>`);
+    if (p && !st.user) badges.push(p.pending ? '<span class="bdg pend">à confirmer</span>' : '<span class="bdg auto">auto</span>');
+    if (st.user) badges.push('<span class="bdg">manuel</span>');
+    if (c.code === 'PP5' || c.code === 'BP6') badges.push('<span class="bdg dep">déconseillé</span>');
+    const pts = points(c.dir, st.str);
+    const fill = fillOf(c.code);
+    const fillTip = { auto: 'Rempli automatiquement à partir des bases', semi: 'Semi-automatique : indices fournis, décision de votre part', man: 'À remplir par vous', dep: 'Déconseillé (ClinGen SVI)' }[fill];
+    const mark = fill === 'man' ? '<span class="fm" aria-hidden="true">✎</span>' : fill === 'semi' ? '<svg class="fm" width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 1a5 5 0 0 0 0 10z" fill="currentColor"/></svg>' : '';
+    return `<div class="cc fill-${fill} ${st.on ? 'on' : ''} ${match(c) ? '' : 'dim'} ${p && !st.on ? 'hasprop' : ''}" data-open="${c.code}" style="${bg}" title="${esc(c.titre)} — ${fillTip}">
+      <div class="top1"><span class="code">${esc(c.code)}</span>${mark}<span class="tiny" style="opacity:.7">${pts > 0 ? '+' : ''}${pts}</span><button class="sw" data-toggle="${c.code}" aria-label="Activer ${c.code}" aria-pressed="${st.on}"></button></div>
+      <div class="lbl">${esc(c.titre)}</div>${badges.length ? `<div class="badges">${badges.join('')}</div>` : ''}</div>`;
+  };
+  const col = (dir, str) => {
+    const items = CRITERIA.filter(c => c.dir === dir && c.def === str);
+    const nm = dir === 'P' ? { VS: 'Très fort', S: 'Fort', M: 'Modéré', P: 'Support' }[str] : { SA: 'Autonome', S: 'Fort', P: 'Support' }[str];
+    return `<div class="mcol"><div class="mcolhd" style="${chipStyle(dir, str)}"><span>${nm}</span><span>${points(dir, str) > 0 ? '+' : ''}${points(dir, str)}</span></div>${items.map(card).join('')}</div>`;
+  };
+  $('#matrix').innerHTML = `<div class="side-label">Pathogène</div><div class="side-label b">Bénin</div>` +
+    COLS_P.map(s => col('P', s)).join('') + '<div class="mgap"></div>' + COLS_B.map(s => col('B', s)).join('');
+  $('#catChips').innerHTML = [['all', 'Tous'], ['mine', '✎ À remplir par moi']].concat(Object.entries(CAT)).map(([k, v]) => `<button class="fchip ${f.cat === k ? 'on' : ''}" data-cat="${k}">${v}</button>`).join('');
+}
+
+/* ---- NMD / PVS1 ---- */
+function nmdSvg(lof, tx) {
+  const exons = lof.exons || tx.exons;
+  const W = 640, H = 120, x0 = 8, x1 = 632;
+  const wts = exons.map(e => Math.pow(e.len, 0.55));
+  const gap = exons.length > 40 ? 2 : 6;
+  const total = wts.reduce((a, b) => a + b, 0);
+  const avail = x1 - x0 - gap * (exons.length - 1);
+  let x = x0;
+  const geo = exons.map((e, i) => { const w = Math.max(3, wts[i] / total * avail); const g = { e, x, w }; x += w + gap; return g; });
+  const scale = (g, c) => g.x + ((c - g.e.cStart) / Math.max(1, g.e.len)) * g.w;
+  const utr5 = tx.utr5;
+  const lenDiff = exons.reduce((s, e) => s + e.len, 0) - tx.exons.reduce((s, e) => s + e.len, 0);
+  const cdsEnd = tx.cdsEndCdna + lenDiff;
+  const y = 54, h = 26;
+  let svg = `<svg class="nmdsvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Structure du transcrit et zones d'échappement au NMD">
+  <defs><pattern id="hatchE" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--bS)" opacity=".18"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--bS)" stroke-width="2" opacity=".55"/></pattern>
+  <pattern id="hatchW" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="6" height="6" fill="var(--warn)" opacity=".12"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--warn)" stroke-width="2" opacity=".5"/></pattern></defs>
+  <line x1="${x0}" y1="${y + h / 2}" x2="${x1}" y2="${y + h / 2}" stroke="var(--faint)" stroke-width="1.5"/>`;
+  const last = geo.length - 1;
+  geo.forEach((g, i) => {
+    const e = g.e;
+    const a = Math.max(e.cStart, utr5 + 1), b = Math.min(e.cEnd, cdsEnd || e.cEnd);
+    svg += `<rect x="${g.x}" y="${y + 6}" width="${g.w}" height="${h - 12}" rx="2" fill="var(--faint)" opacity=".55"/>`;
+    if (b >= a) { const xa = scale(g, a), xb = scale(g, b + 1); svg += `<rect x="${xa}" y="${y}" width="${Math.max(1, xb - xa)}" height="${h}" rx="3" fill="var(--ink)" opacity=".82"/>`; }
+    if (e.len > S.settings.longExon && i !== last) svg += `<rect x="${g.x - 1}" y="${y - 3}" width="${g.w + 2}" height="${h + 6}" rx="4" fill="url(#hatchW)" stroke="var(--warn)" stroke-dasharray="3 2"/>`;
+    if (geo.length <= 30 || i % 5 === 0 || i === last) svg += `<text x="${g.x + g.w / 2}" y="${y + h + 16}" font-size="11" text-anchor="middle" fill="var(--muted)" font-family="var(--mono)">${e.n}</text>`;
+  });
+  // zones d'échappement canoniques : dernier exon + 50 nt en amont de la dernière jonction
+  if (geo.length > 1) {
+    const L = geo[last];
+    svg += `<rect x="${L.x - 1}" y="${y - 3}" width="${L.w + 2}" height="${h + 6}" rx="4" fill="url(#hatchE)" stroke="var(--bS)"/>`;
+    const pen = geo[last - 1];
+    const startC = Math.max(pen.e.cStart, pen.e.cEnd - S.settings.ej + 1);
+    const xs = scale(pen, startC);
+    svg += `<rect x="${xs}" y="${y - 3}" width="${pen.x + pen.w - xs + 1}" height="${h + 6}" fill="url(#hatchE)" stroke="var(--bS)"/>`;
+  }
+  // start-proximal
+  const spEnd = utr5 + S.settings.startProx;
+  geo.forEach(g => {
+    const a = Math.max(g.e.cStart, utr5 + 1), b = Math.min(g.e.cEnd, spEnd);
+    if (b >= a) { const xa = scale(g, a), xb = scale(g, b + 1); svg += `<rect x="${xa}" y="${y - 3}" width="${xb - xa}" height="${h + 6}" fill="url(#hatchW)"/>`; }
+  });
+  // exon sauté (épissage)
+  if (lof.type === 'splice' && lof.skippedExon) {
+    svg += `<text x="${x0}" y="16" font-size="12" fill="var(--warn)" font-family="var(--font)">Transcrit après saut de l'exon ${lof.skippedExon} (modélisé)</text>`;
+  }
+  // PTC
+  if (lof.ptc) {
+    const g = geo.find(gg => lof.ptc >= gg.e.cStart && lof.ptc <= gg.e.cEnd);
+    if (g) {
+      const px = scale(g, lof.ptc);
+      svg += `<line x1="${px}" y1="${y - 10}" x2="${px}" y2="${y + h + 4}" stroke="var(--pVS)" stroke-width="2.5"/>
+      <path d="M${px - 7} ${y - 22} L${px + 7} ${y - 22} L${px} ${y - 10} Z" fill="var(--pVS)"/>
+      <text x="${Math.min(W - 60, Math.max(60, px))}" y="${y - 27}" font-size="12" text-anchor="middle" fill="var(--pVS)" font-weight="700" font-family="var(--mono)">PTC c.${lof.nmd.cpos} (p.${lof.nmd.aa})</text>`;
+    }
+  }
+  return svg + '</svg>';
+}
+
+function seg(name, val, opts) {
+  return `<div class="seg sm" data-q="${name}">${opts.map(([v, l]) => `<button class="${String(val) === String(v) ? 'on' : ''}" data-v="${v}">${l}</button>`).join('')}</div>`;
+}
+
+function renderLoF() {
+  const el = $('#lofCard');
+  const lof = S.lof;
+  if (!lof) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const tx = S.tx;
+  const a = S.pvs1Ans;
+  const ans = pvs1Answers();
+  const t = S.pvs1 || CORE.pvs1Tree(lof, ans);
+  const typeLbl = { ptc: 'Codon stop prématuré (non-sens / frameshift)', splice: 'Site d\'épissage canonique ±1/2', start: 'Perte du codon d\'initiation' }[lof.type];
+  let left = '';
+  if (lof.error) left = `<div class="alert warn">${esc(lof.error)}</div>`;
+  else if (lof.type === 'start') {
+    left = `<div class="kicker">Perte du start</div>
+      <p class="small">${lof.nextMet ? `Méthionine en phase suivante : <b class="mono">p.Met${lof.nextMet}</b> → ${(lof.removedFrac * 100).toFixed(1)} % de la protéine N-terminale perdus si la traduction réinitie.` : 'Aucune méthionine en phase en aval.'}</p>
+      <p class="small">ClinVar, variants P/LP entre c.4 et la Met alternative : ${S.clinvar && S.clinvar.upstream ? `<b>${S.clinvar.upstream.length}</b>${S.clinvar.upstream.length ? ' — ' + S.clinvar.upstream.slice(0, 6).map(r => `<a href="https://www.ncbi.nlm.nih.gov/clinvar/variation/${r.uid}/" target="_blank" rel="noopener">${esc(CORE.parseClinvarTitle(r.title).c)}</a>`).join(', ') : ''}` : 'en cours / indisponible'}</p>`;
+  } else {
+    const nm = lof.nmd;
+    left = `${tx ? nmdSvg(lof, tx) : ''}
+      <div class="legend"><span><svg width="14" height="10"><rect width="14" height="10" fill="var(--ink)" opacity=".82" rx="2"/></svg>CDS</span><span><svg width="14" height="10"><rect width="14" height="10" fill="var(--faint)" opacity=".55" rx="2"/></svg>UTR</span><span><svg width="14" height="10"><rect width="14" height="10" fill="var(--bS)" opacity=".35"/></svg>échappement canonique</span><span><svg width="14" height="10"><rect width="14" height="10" fill="var(--warn)" opacity=".3"/></svg>échappement partiel (start-proximal, exon long)</span></div>
+      ${lof.type === 'splice' ? `<p class="small" style="margin-top:10px">Saut de l'exon ${lof.skippedExon} (${lof.exonLen} nt, dont ${lof.codLen} codants) → <b>${lof.frame === 'in' ? 'en phase' : lof.frame === 'out' ? 'décalage du cadre' : 'non codant'}</b>${lof.frame === 'in' ? ` · ${(lof.removedFrac * 100).toFixed(1)} % de la protéine retirés` : ''}.</p>` : ''}
+      ${nm ? `<div class="nmdverdict ${nm.verdict}">${nm.verdict === 'nmd' ? 'NMD prédit' : nm.verdict === 'escape' ? 'Échappement au NMD' : 'NMD incertain'}</div>
+      <div class="small muted">${esc(nm.why)}</div>
+      <ul class="rules">${nm.rules.map(r => `<li class="${r.hit ? 'hit' : ''} ${r.kind}"><span class="dot">${r.hit ? '✓' : ''}</span><span>${esc(r.label)}${r.detail ? ` <span class="muted mono tiny">(${esc(r.detail)})</span>` : ''}</span></li>`).join('')}</ul>
+      <p class="small" style="margin-top:8px">PTC dans l'exon ${nm.exonN} · protéine retirée à partir du résidu ${lof.firstAltAA} : <b>${(lof.removedFrac * 100).toFixed(1)} %</b> (${lof.removedFrac > 0.1 ? '> 10 %' : '≤ 10 %'}).</p>` : ''}`;
+  }
+  const notes = (lof.notes || []).map(n => `<div class="wline info">${esc(n)}</div>`).join('');
+  const tree = t && t.path ? t.path.map((p, i) => `<div class="tnode"><div class="n">${i + 1}</div><div><div class="q">${esc(p.q)}</div><div class="a"><span class="ans">${esc(p.a)}</span><span class="srcb ${p.src === 'auto' ? 'auto' : ''}">${p.src === 'auto' ? 'auto' : 'vous'}</span></div></div></div>`).join('') : '';
+  const resStr = t && t.str ? (t.str === 'NA' ? 'Non applicable' : critName('PVS1', 'VS', t.str)) : '—';
+  const nmdAutoTxt = lof.nmd ? (lof.nmd.verdict === 'escape' ? 'Non' : 'Oui') : '—';
+  el.innerHTML = `<div class="hd"><h2>Perte de fonction · NMD · arbre PVS1</h2><div class="sp"><span class="small muted">${esc(typeLbl)}</span></div></div>
+  <div class="bd"><div class="lofgrid">
+    <div>${left}${notes ? `<div class="warnings">${notes}</div>` : ''}</div>
+    <div>
+      <div class="kicker" style="margin-bottom:8px">Arbre décisionnel PVS1 (Abou Tayoun 2018)</div>
+      <div class="tree">${tree}</div>
+      <div class="tres"><span class="small">Résultat :</span><span class="r" style="color:${t && t.str && t.str !== 'NA' ? colorOf('P', t.str) : 'var(--muted)'}">${esc(resStr)}</span>${t && t.pending && t.str !== 'NA' ? '<span class="bdg pend">LoF à confirmer</span>' : ''}</div>
+      <div class="qs" id="lofQs">
+        <div class="qline"><span class="ql">La perte de fonction est-elle un mécanisme connu pour ce gène/cette maladie ?<br><span class="tiny muted">Indices : LOEUF ${S.csq && S.csq.loeuf != null ? fmt(S.csq.loeuf, 2) : '—'} (indicatif) · ClinGen Dosage · GeneReviews</span></span>${seg('lofMech', a.lofMech, [['yes', 'Oui'], ['no', 'Non'], ['null', '?']])}</div>
+        ${lof.type !== 'start' ? `
+        <div class="qline"><span class="ql">NMD prédit <span class="tiny muted">(auto : ${nmdAutoTxt})</span></span>${seg('nmdOverride', a.nmdOverride, [['null', 'Auto'], ['true', 'Oui'], ['false', 'Non']])}</div>
+        <div class="qline"><span class="ql">Exon présent dans le(s) transcrit(s) biologiquement pertinent(s) ?</span>${seg('relevantTx', a.relevantTx, [['true', 'Oui'], ['false', 'Non']])}</div>
+        <div class="qline"><span class="ql">Région tronquée/altérée critique pour la fonction ?</span>${seg('critical', a.critical, [['true', 'Oui'], ['false', 'Non'], ['null', '?']])}</div>
+        <div class="qline"><span class="ql">LoF fréquents dans gnomAD pour cette région / exon absent de transcrits pertinents ?</span>${seg('lofFrequent', a.lofFrequent, [['true', 'Oui'], ['false', 'Non']])}</div>` : `
+        <div class="qline"><span class="ql">Un transcrit fonctionnel utilise-t-il un autre codon d'initiation ?</span>${seg('altStart', a.altStart, [['true', 'Oui'], ['false', 'Non']])}</div>
+        <div class="qline"><span class="ql">Variant(s) pathogène(s) en amont de la Met alternative <span class="tiny muted">(auto ClinVar : ${S.clinvar && S.clinvar.upstream ? (S.clinvar.upstream.length ? 'Oui' : 'Non') : '—'})</span></span>${seg('pathUpstreamOverride', a.pathUpstreamOverride, [['null', 'Auto'], ['true', 'Oui'], ['false', 'Non']])}</div>`}
+      </div>
+    </div>
+  </div></div>`;
+}
+
+/* ---- Preuves ---- */
+function renderEvidence() {
+  const el = $('#evidence');
+  if (!S.csq) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const g = S.gnomad, csq = S.csq;
+  let pop = '<div class="empty">Chargement…</div>';
+  if (g && g.error) pop = `<div class="alert err small">gnomAD : ${esc(g.error)}</div>`;
+  else if (g && !g.found) pop = `<div class="empty">Absent de gnomAD v4.1 (exomes + génomes).</div><div class="small muted">Une absence peut aussi refléter une faible couverture : vérifier la couverture sur le navigateur gnomAD. Les populations nord-africaines y sont peu représentées.</div>`;
+  else if (g) {
+    const thr = bs1Threshold();
+    pop = `<table class="kv">
+      <tr><td>AC / AN (joint)</td><td>${g.ac} / ${g.an}</td></tr>
+      <tr><td>AF globale</td><td>${fmt(g.af)}</td></tr>
+      <tr><td>FAF95 grpmax</td><td>${fmt(g.faf)} ${g.fafPop ? '(' + esc(g.fafPop) + ')' : ''}</td></tr>
+      <tr><td>Homozygotes / hémizygotes</td><td>${g.hom} / ${g.hemi}</td></tr>
+      <tr><td>Exomes · génomes (AC)</td><td>${g.exome ? g.exome.ac : '—'} · ${g.genome ? g.genome.ac : '—'}</td></tr>
+      <tr><td>Seuil BA1 · BS1 (Whiffin)</td><td>${S.settings.ba1} · ${fmt(thr)}</td></tr>
+      ${g.filters.length ? `<tr><td>Filtres</td><td>${esc(g.filters.join(', '))}</td></tr>` : ''}
+    </table>
+    <table class="tb" style="margin-top:10px"><tr><th>Groupe</th><th>AC</th><th>AN</th><th>AF</th><th>Hom</th></tr>
+    ${g.pops.slice(0, 9).map(p => `<tr${p.id === 'mid' ? ' style="background:var(--accent-soft)"' : ''}><td>${esc(p.id)}</td><td>${p.ac}</td><td>${p.an}</td><td>${fmt(p.ac / p.an)}</td><td>${p.hom}</td></tr>`).join('')}</table>`;
+  }
+  // In silico
+  const rv = revelScore();
+  const band = rv ? CORE.revelBand(rv.v) : null;
+  const am = csq.alphamissense;
+  const sd = spliceData();
+  const sMax = sd ? CORE.spliceMax(sd.s) : null;
+  const mdm = S.md && S.md.d ? S.md.d : null;
+  const bar = (v, c) => `<div class="scorebar"><i style="width:${Math.max(0, Math.min(1, v)) * 100}%;background:${c}"></i></div>`;
+  const bandTxt = band ? (band.dir ? critName(band.dir === 'P' ? 'PP3' : 'BP4', 'P', band.str) : 'zone indéterminée') : '';
+  let insil = `<table class="kv">
+    <tr><td>REVEL ${rv ? '<span class="tiny">(' + esc(rv.src) + ')</span>' : ''}</td><td>${rv ? rv.v.toFixed(3) + ' · ' + bandTxt + bar(rv.v, band && band.dir === 'P' ? 'var(--pS)' : band && band.dir === 'B' ? 'var(--bS)' : 'var(--faint)') : 'non applicable / indisponible'}</td></tr>
+    <tr><td>AlphaMissense <span class="tiny">(info)</span></td><td>${am ? fmt(am.am_pathogenicity) + ' · ' + esc(am.am_class) : '—'}</td></tr>
+    <tr><td>SpliceAI Δmax ${sd ? '<span class="tiny">(' + esc(sd.src) + ')</span>' : ''}</td><td>${sMax != null ? sMax.toFixed(2) + bar(sMax, sMax >= 0.2 ? 'var(--pS)' : sMax <= 0.1 ? 'var(--bS)' : 'var(--warn)') : `— <button class="btn ghost sm" id="broadBtn">Calculer (Broad)</button>`}</td></tr>
+    ${sd ? `<tr><td>Δ AG / AL / DG / DL</td><td>${['DS_AG', 'DS_AL', 'DS_DG', 'DS_DL'].map(k => fmt(parseFloat(sd.s[k]), 2)).join(' / ')}</td></tr><tr><td>Positions (nt)</td><td>${['DP_AG', 'DP_AL', 'DP_DG', 'DP_DL'].map(k => sd.s[k] != null ? sd.s[k] : '—').join(' / ')}</td></tr>` : ''}
+    ${mdm && mdm.missensePredictions ? `<tr><td>BayesDel · CADD (MobiDetails)</td><td>${esc(mdm.missensePredictions.bayesDelScore)} · ${esc(mdm.overallPredictions && mdm.overallPredictions.caddPhred)}</td></tr>` : ''}
+    ${mdm && mdm.functionalStudies && mdm.functionalStudies.mavedb_urn && mdm.functionalStudies.mavedb_urn !== 'None' ? `<tr><td>MaveDB (MobiDetails)</td><td>score ${esc(mdm.functionalStudies.mavedb_score)} · <a href="https://www.mavedb.org/score-sets/${esc(String(mdm.functionalStudies.mavedb_urn).replace(/#.*/, ''))}" target="_blank" rel="noopener">${esc(mdm.functionalStudies.mavedb_urn)}</a></td></tr>` : ''}
+    ${csq.sift_prediction ? `<tr><td>SIFT <span class="tiny">(info)</span></td><td>${esc(csq.sift_prediction)} (${csq.sift_score})</td></tr>` : ''}
+  </table>
+  <div class="tiny muted" style="margin-top:6px">Règle « un seul outil » (Pejaver 2022) : seul REVEL sert à PP3/BP4 faux-sens ; SpliceAI pour l'épissage (Walker 2023).</div>`;
+  // ClinVar
+  const cv = S.clinvar;
+  const sigCol = s => ({ P: 'var(--cP)', LP: 'var(--cLP)', 'P/LP': 'var(--cP)', VUS: 'var(--cVUS)', B: 'var(--cB)', conflict: 'var(--warn)' }[s] || 'var(--faint)');
+  const row = r => `<tr><td><a href="https://www.ncbi.nlm.nih.gov/clinvar/variation/${r.uid}/" target="_blank" rel="noopener">${esc(r.c || r.title)}</a>${r.txMismatch ? ' <span class="tiny" title="Autre transcrit">⚠</span>' : ''}</td><td>${r.alt ? esc('p.' + r.ref + r.pos + r.alt) : ''}</td><td><span class="pill" style="background:${sigCol(r.sig)}">${esc(r.germline)}</span></td><td>${'★'.repeat(r.stars || 0) || '–'}</td></tr>`;
+  let cvh = '<div class="empty">Chargement…</div>';
+  if (cv && cv.error) cvh = `<div class="alert err small">ClinVar : ${esc(cv.error)}</div>`;
+  else if (cv) {
+    const ex = cv.exact.map(r => Object.assign(CORE.parseClinvarTitle(r.title), r, { sig: CORE.clinsigRank(r.germline), stars: CORE.reviewStars(r.review) }));
+    cvh = `<div class="small" style="margin-bottom:6px"><b>Ce variant</b> ${ex.length ? '' : ': absent de ClinVar'}</div>
+      ${ex.length ? `<div class="tscroll"><table class="tb"><tr><th>Variant</th><th>Protéine</th><th>Classification</th><th>Revue</th></tr>${ex.map(row).join('')}</table></div><div class="tiny muted" style="margin-top:4px">Information seulement : PP5/BP6 ne sont pas recommandés ; examiner les preuves des soumetteurs.</div>` : ''}
+      ${cv.codon ? `<div class="small" style="margin:12px 0 6px"><b>Même codon</b> (${cv.codon.n} entrées ClinVar) — PS1 : ${cv.codon.ps1.length} · PM5 : ${cv.codon.pm5.length}</div>
+        ${cv.codon.ps1.length + cv.codon.pm5.length ? `<div class="tscroll"><table class="tb"><tr><th>Variant</th><th>Protéine</th><th>Classification</th><th>Revue</th></tr>${cv.codon.ps1.concat(cv.codon.pm5).map(row).join('')}</table></div>` : '<div class="empty">Aucun autre faux-sens P/LP à ce résidu.</div>'}` : ''}`;
+  }
+  // Domaines
+  const doms = (csq.domains || []).filter(d => d.db !== 'ENSP_mappings' && d.db !== 'AFDB-ENSP_mappings');
+  const uniqDom = [...new Map(doms.map(d => [d.db + d.name, d])).values()];
+  const md = S.md;
+  const mdh = !md ? '<div class="empty">Chargement…</div>' : md.error ? `<div class="alert err small">MobiDetails : ${esc(md.error)}</div>` : md.absent ? `<div class="empty">Variant pas encore créé dans MobiDetails.</div><button class="btn ghost sm" id="mdCreate">Créer dans MobiDetails (clé API)</button>` :
+    `<table class="kv"><tr><td>Identifiant</td><td><a href="${esc(md.url)}" target="_blank" rel="noopener">${md.id}</a></td></tr>
+     <tr><td>Transcrit MD</td><td>${esc(md.d.gene && md.d.gene.RefSeqTranscript)}</td></tr>
+     <tr><td>ClinVar (MD)</td><td>${esc(md.d.frequenciesDatabases && md.d.frequenciesDatabases.clinvarClinsig)}</td></tr>
+     <tr><td>Spéc. VCEP (CSpec)</td><td>${md.d.gene && md.d.gene.clingenCriteriaSpec && md.d.gene.clingenCriteriaSpec !== 'None' ? `<a href="https://cspec.genome.network/cspec/ui/svi/svi/${esc(md.d.gene.clingenCriteriaSpec)}" target="_blank" rel="noopener">${esc(md.d.gene.clingenCriteriaSpec)}</a>` : 'aucune'}</td></tr>
+     <tr><td>Taille protéine</td><td>${esc(md.d.gene && md.d.gene.proteinSize)}</td></tr></table>`;
+  el.innerHTML = `<div class="hd"><h2>Preuves récupérées</h2><div class="sp tiny muted">Interrogé le ${new Date().toLocaleDateString('fr-FR')}</div></div>
+  <div class="bd evgrid">
+    <div class="ev"><h3>Population · gnomAD v4</h3>${pop}</div>
+    <div class="ev"><h3>Prédictions in silico</h3>${insil}</div>
+    <div class="ev"><h3>ClinVar</h3>${cvh}</div>
+    <div class="ev"><h3>Domaines (indices PM1)</h3>${uniqDom.length ? `<div class="links" style="margin-top:0">${uniqDom.slice(0, 14).map(d => `<span class="bdg" style="font-size:.74rem">${esc(d.db)} · ${esc(d.name)}</span>`).join(' ')}</div>` : '<div class="empty">Aucun domaine annoté à cette position.</div>'}
+      <h3 style="margin-top:16px">MobiDetails</h3>${mdh}</div>
+  </div>`;
+}
+
+/* ---- Tiroir critère ---- */
+function openCrit(code) {
+  const c = CRIT[code]; if (!c) return;
+  const st = S.crit[code], p = S.props[code];
+  const strOpts = c.allowed.map(s => [s, STR_LABEL[s]]);
+  $('#dTitle').innerHTML = `<span class="dcode" style="${chipStyle(c.dir, st.on ? st.str : c.def)}">${code}</span><div><h3 style="font-size:1.08rem">${esc(c.titre)}</h3><div class="small muted">${c.dir === 'P' ? 'Pathogène' : 'Bénin'} · défaut : ${STR_LABEL[c.def]} · ${esc(CAT[c.cat])}</div></div>`;
+  const forThis = p ? `<div class="forthis"><b>${p.pending ? 'Proposition en attente' : 'Proposé automatiquement'} : ${critName(code, c.def, p.str)}</b><br>${esc(p.why)}</div>` :
+    (S.csq ? '<div class="forthis">Aucune proposition automatique pour ce variant : critère à évaluer manuellement.</div>' : '<div class="forthis">Analysez un variant pour obtenir des propositions, ou utilisez le tableau manuellement.</div>');
+  $('#dBody').innerHTML = `
+    ${forThis}
+    <div class="ctl">
+      <label class="toggle"><input type="checkbox" id="dOn" ${st.on ? 'checked' : ''}> Appliquer ${code}</label>
+      ${strOpts.length > 1 ? `<div class="seg sm" id="dStr">${strOpts.map(([s, l]) => `<button data-s="${s}" class="${st.str === s ? 'on' : ''}">${l}</button>`).join('')}</div>` : ''}
+      ${st.user && p ? '<button class="btn ghost sm" id="dReset">Revenir à la proposition</button>' : ''}
+    </div>
+    <div class="small muted" style="margin-top:6px">Nom ClinGen : <span class="mono">${critName(code, c.def, st.str)}</span> · ${points(c.dir, st.str) > 0 ? '+' : ''}${points(c.dir, st.str)} points</div>
+    ${c.calc ? calcHtml(c.calc) : ''}
+    <div class="dsec"><h4>Définition (ACMG/AMP 2015)</h4><p>${esc(c.def2015)}</p></div>
+    <div class="dsec"><h4>Mises à jour ClinGen</h4><p>${esc(c.clingen)}</p></div>
+    <div class="dsec"><h4>Ce que fait l'outil</h4><p>${esc(c.outil)}</p></div>
+    <div class="dsec"><h4>Pièges fréquents</h4><p>${esc(c.pieges)}</p></div>
+    <div class="dsec"><h4>Note pour ce variant</h4><textarea class="note" id="dNote" placeholder="Justification, référence, observation familiale…">${esc(st.note)}</textarea></div>
+    ${c.refs.length ? `<div class="dsec"><h4>Références</h4><p class="small">${c.refs.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>`).join(' · ')}</p></div>` : ''}`;
+  $('#drawer').dataset.code = code;
+  $('#drawer').dataset.kind = 'crit';
+  showDrawer();
+  updateCalc();
+}
+
+function calcHtml(kind) {
+  const C = S.calc;
+  if (kind === 'denovo') return `<div class="dsec"><h4>Calculateur de novo (SVI v1.1)</h4><div class="calc" data-calc="denovo">
+    <div class="row"><span>Confirmés · phénotype très spécifique (2 pts)</span><input type="number" min="0" data-k="cs" value="${C.denovo.cs}"></div>
+    <div class="row"><span>Confirmés · phénotype compatible (1 pt)</span><input type="number" min="0" data-k="cc" value="${C.denovo.cc}"></div>
+    <div class="row"><span>Présumés · phénotype très spécifique (1 pt)</span><input type="number" min="0" data-k="as" value="${C.denovo.as}"></div>
+    <div class="row"><span>Présumés · phénotype compatible (0,5 pt)</span><input type="number" min="0" data-k="ac" value="${C.denovo.ac}"></div>
+    <div class="out" id="calcOut"></div></div></div>`;
+  if (kind === 'pm3') return `<div class="dsec"><h4>Calculateur PM3 (SVI v1.0)</h4><div class="calc" data-calc="pm3">
+    <div class="row"><span>En trans confirmé avec P/LP (1,0)</span><input type="number" min="0" data-k="tr" value="${C.pm3.tr}"></div>
+    <div class="row"><span>Phase inconnue avec P (0,5)</span><input type="number" min="0" data-k="puP" value="${C.pm3.puP}"></div>
+    <div class="row"><span>Phase inconnue avec LP (0,25)</span><input type="number" min="0" data-k="puLP" value="${C.pm3.puLP}"></div>
+    <div class="row"><span>Homozygotes (0,5 ; max 1,0)</span><input type="number" min="0" data-k="hom" value="${C.pm3.hom}"></div>
+    <div class="out" id="calcOut"></div></div></div>`;
+  if (kind === 'pp1') return `<div class="dsec"><h4>Calculateur de coségrégation (Jarvik &amp; Browning 2016)</h4><div class="calc" data-calc="pp1">
+    <div class="row"><span>Méioses informatives (m)</span><input type="number" min="0" data-k="m" value="${C.pp1.m}"></div>
+    <div class="row"><span>Familles</span>${seg('fam', C.pp1.fam, [['one', 'Une'], ['multi', 'Plusieurs']]).replace('data-q="fam"', 'data-calcseg="fam"')}</div>
+    <div class="out" id="calcOut"></div></div></div>`;
+  return '';
+}
+function calcResult() {
+  const code = $('#drawer').dataset.code, c = CRIT[code]; if (!c || !c.calc) return null;
+  const C = S.calc;
+  const toStr = p => p >= 4 ? 'VS' : p >= 2 ? 'S' : p >= 1 ? 'M' : p >= 0.5 ? 'P' : null;
+  if (c.calc === 'denovo') {
+    const d = C.denovo;
+    const pts = code === 'PS2' ? d.cs * 2 + d.cc * 1 : d.as * 1 + d.ac * 0.5;
+    return { pts, str: toStr(pts), txt: `${pts} point(s)${code === 'PS2' ? ' (lignes « confirmés »)' : ' (lignes « présumés »)'}` };
+  }
+  if (c.calc === 'pm3') {
+    const d = C.pm3;
+    const pts = d.tr * 1 + d.puP * 0.5 + d.puLP * 0.25 + Math.min(1, d.hom * 0.5);
+    return { pts, str: toStr(pts), txt: `${pts} point(s)` };
+  }
+  if (c.calc === 'pp1') {
+    const { m, fam } = C.pp1;
+    const thr = fam === 'one' ? { P: 3, M: 4, S: 5 } : { P: 2, M: 3, S: 4 };
+    const str = m >= thr.S ? 'S' : m >= thr.M ? 'M' : m >= thr.P ? 'P' : null;
+    return { pts: null, str, txt: `(1/2)^${m} = 1/${Math.pow(2, m)}` };
+  }
+  return null;
+}
+function updateCalc() {
+  const out = $('#calcOut'); if (!out) return;
+  const r = calcResult();
+  if (!r) return;
+  out.innerHTML = `<span>${esc(r.txt)} → ${r.str ? `<span class="tag" style="${chipStyle('P', r.str)}">${STR_LABEL[r.str]}</span>` : '<span class="muted">insuffisant</span>'}</span>${r.str ? '<button class="btn sm" id="calcApply">Appliquer</button>' : ''}`;
+}
+
+function showDrawer() { $('#drawer').classList.add('on'); $('#scrim').classList.add('on'); }
+function hideDrawer() { $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on'); }
+
+function openGuide() {
+  $('#dTitle').innerHTML = `<div><h3>Guide d'interprétation</h3><div class="small muted">ACMG/AMP 2015 · ClinGen SVI · système de points</div></div>`;
+  $('#dBody').innerHTML = $('#guideTpl').innerHTML;
+  $('#drawer').dataset.kind = 'guide';
+  showDrawer();
+}
+function openSettings() {
+  const s = S.settings;
+  const thr = bs1Threshold();
+  const num = (k, step, lab, hint) => `<div class="row"><span class="lab">${lab}${hint ? `<br><span class="tiny muted">${hint}</span>` : ''}</span><input type="number" step="${step}" data-set="${k}" value="${s[k]}"></div>`;
+  $('#dTitle').innerHTML = `<div><h3>Paramètres</h3><div class="small muted">Enregistrés dans ce navigateur</div></div>`;
+  $('#dBody').innerHTML = `<div class="set">
+    <h3>Fréquences</h3>
+    ${num('ba1', '0.001', 'Seuil BA1 (FAF95 grpmax)', 'Défaut 0,05 (Ghosh 2018)')}
+    ${num('pm2AdMaxAC', '1', 'PM2 dominant / lié X : AC max', 'Défaut 0 = absent de gnomAD')}
+    ${num('pm2ArMaxAF', '0.00001', 'PM2 récessif : AF max', 'Défaut 0,0001 — à adapter aux spécifications VCEP')}
+    <h3>BS1 · fréquence maximale crédible (Whiffin 2017)</h3>
+    ${num('prevalence', '0.00001', 'Prévalence de la maladie', 'ex. 0,0001 = 1/10 000')}
+    ${num('allelic', '0.01', 'Contribution allélique maximale', 'part des cas due à un seul allèle')}
+    ${num('genetic', '0.01', 'Contribution génétique (du gène)', 'part des cas due à ce gène')}
+    ${num('penetrance', '0.01', 'Pénétrance', '')}
+    <div class="row"><span class="lab">Seuil BS1 calculé (mode ${S.mode === 'AR' ? 'récessif' : 'dominant'})</span><span class="mono" id="bs1val">${fmt(thr)}</span></div>
+    <h3>Règles NMD</h3>
+    ${num('ej', '1', 'Règle des 50 nt (distance à la dernière jonction)', '')}
+    ${num('border', '1', 'Limite de la zone frontière', '50–55 nt')}
+    ${num('startProx', '1', 'Start-proximal (nt codants)', 'Lindeboom : 150 ; plugin VEP NMD : 100')}
+    ${num('longExon', '1', 'Exon long (nt)', 'Lindeboom : 407')}
+    <h3>Clés API (facultatives)</h3>
+    <div class="row"><span class="lab">NCBI E-utilities<br><span class="tiny muted">augmente le débit ClinVar</span></span><input type="password" data-set="ncbiKey" value="${esc(s.ncbiKey)}"></div>
+    <div class="row"><span class="lab">MobiDetails<br><span class="tiny muted">nécessaire pour créer un variant absent</span></span><input type="password" data-set="mdKey" value="${esc(s.mdKey)}"></div>
+    <h3>Apparence</h3>
+    <div class="row"><span class="lab">Thème</span>${seg('theme', s.theme, [['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']]).replace('data-q="theme"', 'data-setseg="theme"')}</div>
+    <div class="row"><span class="lab">Réinitialiser les paramètres</span><button class="btn ghost sm" id="setReset">Valeurs par défaut</button></div>
+  </div>`;
+  $('#drawer').dataset.kind = 'settings';
+  showDrawer();
+}
+
+/* ---------- Export ---------- */
+function summaryText() {
+  const ap = appliedList();
+  const c15 = CORE.classify2015(ap), pts = CORE.classifyPoints(ap);
+  const csq = S.csq, v = S.vcf;
+  const L = [];
+  L.push('ATELIER ACMG — résumé d\'interprétation');
+  L.push('Date : ' + new Date().toLocaleString('fr-FR'));
+  if (csq) {
+    L.push(`Variant : ${csq.gene_symbol} ${(csq.mane_select || csq.transcript_id)}:${csq.hgvsc ? csq.hgvsc.split(':')[1] : ''} ${csq.hgvsp ? csq.hgvsp.split(':')[1] : ''}`);
+    L.push(`GRCh38 : ${v.chr}-${v.pos}-${v.ref}-${v.alt} · ${(csq.consequence_terms || []).join(', ')}`);
+  }
+  L.push(`Mode de transmission : ${{ AD: 'dominant', AR: 'récessif', XL: 'lié à l\'X', '?': 'inconnu' }[S.mode]}`);
+  L.push(`Classification (points) : ${pts.cls} — ${CLS[pts.cls][0]} (${pts.total} points)${pts.tier ? ', VUS ' + pts.tier : ''}`);
+  L.push(`Classification (règles 2015 + SVI) : ${c15.cls} — ${c15.rule}`);
+  L.push('');
+  L.push('Critères appliqués :');
+  for (const a of ap) {
+    const st = S.crit[a.code], p = S.props[a.code];
+    L.push(`  • ${critName(a.code, a.def, a.str)} (${points(a.dir, a.str) > 0 ? '+' : ''}${points(a.dir, a.str)}) — ${st.user ? 'manuel' : 'auto'}${p ? ' : ' + p.why : ''}${st.note ? ' | Note : ' + st.note : ''}`);
+  }
+  const W = warnings(ap);
+  if (W.length) { L.push(''); L.push('Points d\'attention :'); W.forEach(w => L.push('  - ' + w)); }
+  if (S.lof && S.lof.nmd) { L.push(''); L.push(`NMD : ${S.lof.nmd.why} (PTC c.${S.lof.nmd.cpos}, exon ${S.lof.nmd.exonN})`); }
+  L.push('');
+  L.push('Sources : Ensembl VEP (REVEL, AlphaMissense, SpliceAI, LOEUF), gnomAD v4, ClinVar (E-utilities), MobiDetails. Références : Richards 2015 ; Tavtigian 2020 ; Abou Tayoun 2018 ; Pejaver 2022 ; Walker 2023 ; SVI PM2 2020.');
+  L.push('Outil d\'aide à l\'interprétation — à valider par un généticien.');
+  return L.join('\n');
+}
+function download(name, text, type) {
+  const b = new Blob([text], { type }); const u = URL.createObjectURL(b);
+  const a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 1000);
+}
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2600); }
+function showErr(html) { $('#qerr').innerHTML = `<div class="alert err">${html}</div>`; }
+
+/* ---------- Événements ---------- */
+function bind() {
+  $('#qform').addEventListener('submit', e => { e.preventDefault(); const v = $('#q').value.trim(); if (v) { store.set('lastInput', v); run(v); } });
+  $('#examples').addEventListener('click', e => { const b = e.target.closest('[data-ex]'); if (!b) return; $('#q').value = b.dataset.ex; if (b.dataset.mode) setMode(b.dataset.mode); run(b.dataset.ex); });
+  $('#rschoice').addEventListener('click', e => { const b = e.target.closest('[data-vcf]'); if (!b) return; const [c, p, r, a] = b.dataset.vcf.split('-'); run('', { chr: c, pos: +p, ref: r, alt: a }); });
+  $('#modeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.m); });
+  $('#guideBtn').addEventListener('click', openGuide);
+  $('#setBtn').addEventListener('click', openSettings);
+  $('#themeBtn').addEventListener('click', () => {
+    const cur = S.settings.theme === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : S.settings.theme;
+    S.settings.theme = cur === 'dark' ? 'light' : 'dark'; store.set('settings', S.settings); applyTheme();
+  });
+  $('#scrim').addEventListener('click', hideDrawer);
+  $('#dClose').addEventListener('click', hideDrawer);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hideDrawer(); });
+  $('#catChips').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) { S.filter.cat = b.dataset.cat; renderMatrix(); } });
+  $('#critSearch').addEventListener('input', e => { S.filter.q = e.target.value; renderMatrix(); });
+  // délégation globale
+  document.body.addEventListener('click', e => {
+    const tg = e.target.closest('[data-toggle]');
+    if (tg) { e.stopPropagation(); const st = S.crit[tg.dataset.toggle]; st.on = !st.on; st.user = true; afterUserChange(); return; }
+    const op = e.target.closest('[data-open]');
+    if (op && !e.target.closest('.drawer')) { openCrit(op.dataset.open); return; }
+    if (e.target.id === 'resetProps') { CRITERIA.forEach(c => { S.crit[c.code].user = false; }); recompute(); toast('Propositions automatiques restaurées'); return; }
+    if (e.target.id === 'clearAll') { CRITERIA.forEach(c => { S.crit[c.code].on = false; S.crit[c.code].user = true; }); renderAll(); return; }
+    if (e.target.id === 'broadBtn') { loadBroad(); return; }
+    if (e.target.id === 'mdCreate') { mdCreate(); return; }
+    if (e.target.id === 'copyBtn') { navigator.clipboard.writeText(summaryText()).then(() => toast('Résumé copié'), () => download('acmg-resume.txt', summaryText(), 'text/plain')); return; }
+    if (e.target.id === 'txtBtn') { download(`acmg-${(S.csq && S.csq.gene_symbol) || 'variant'}.txt`, summaryText(), 'text/plain;charset=utf-8'); return; }
+    if (e.target.id === 'jsonBtn') { download(`acmg-${(S.csq && S.csq.gene_symbol) || 'variant'}.json`, JSON.stringify(exportJSON(), null, 2), 'application/json'); return; }
+    if (e.target.id === 'printBtn') { window.print(); return; }
+    // segments PVS1
+    const sq = e.target.closest('[data-q] button');
+    if (sq && !e.target.closest('[data-setseg]') && !e.target.closest('[data-calcseg]')) {
+      const q = sq.parentElement.dataset.q; let v = sq.dataset.v;
+      v = v === 'null' ? null : v === 'true' ? true : v === 'false' ? false : v;
+      S.pvs1Ans[q] = v;
+      if (S.crit.PVS1.user) S.crit.PVS1.user = false; // l'arbre redevient la source
+      recompute(); return;
+    }
+  });
+  // tiroir
+  $('#drawer').addEventListener('change', e => {
+    const code = $('#drawer').dataset.code;
+    if (e.target.id === 'dOn') { const st = S.crit[code]; st.on = e.target.checked; st.user = true; afterUserChange(); openCrit(code); }
+    if (e.target.dataset.set) {
+      const k = e.target.dataset.set;
+      S.settings[k] = e.target.type === 'number' ? parseFloat(e.target.value) : e.target.value;
+      store.set('settings', S.settings);
+      if (['ej', 'border', 'startProx', 'longExon'].includes(k) && S.tx && S.csq) S.lof = CORE.analyzeLoF(S.tx, S.vcf, S.csq, { ej: S.settings.ej, border: S.settings.border, startProx: S.settings.startProx, longExon: S.settings.longExon });
+      const b = $('#bs1val'); if (b) b.textContent = fmt(bs1Threshold());
+      recompute();
+    }
+  });
+  $('#drawer').addEventListener('input', e => {
+    const code = $('#drawer').dataset.code;
+    if (e.target.id === 'dNote') S.crit[code].note = e.target.value;
+    const calc = e.target.closest('[data-calc]');
+    if (calc && e.target.dataset.k) { S.calc[calc.dataset.calc][e.target.dataset.k] = Math.max(0, parseFloat(e.target.value) || 0); updateCalc(); }
+  });
+  $('#drawer').addEventListener('click', e => {
+    const code = $('#drawer').dataset.code;
+    const sb = e.target.closest('#dStr button');
+    if (sb) { const st = S.crit[code]; st.str = sb.dataset.s; st.on = true; st.user = true; afterUserChange(); openCrit(code); return; }
+    if (e.target.id === 'dReset') { S.crit[code].user = false; recompute(); openCrit(code); return; }
+    if (e.target.id === 'calcApply') { const r = calcResult(); if (r && r.str) { const c = CRIT[code]; const s = c.allowed.includes(r.str) ? r.str : c.allowed[0]; Object.assign(S.crit[code], { on: true, str: s, user: true }); afterUserChange(); openCrit(code); } return; }
+    const cs = e.target.closest('[data-calcseg] button');
+    if (cs) { S.calc.pp1.fam = cs.dataset.v; openCrit(code); return; }
+    const ss = e.target.closest('[data-setseg] button');
+    if (ss) { S.settings.theme = ss.dataset.v; store.set('settings', S.settings); applyTheme(); openSettings(); return; }
+    if (e.target.id === 'setReset') { S.settings = Object.assign({}, DEFAULTS, { ncbiKey: S.settings.ncbiKey, mdKey: S.settings.mdKey }); store.set('settings', S.settings); applyTheme(); recompute(); openSettings(); return; }
+    const op = e.target.closest('[data-open]');
+    if (op) openCrit(op.dataset.open);
+  });
+  $('#variantCard').addEventListener('change', async e => {
+    if (e.target.id !== 'txsel') return;
+    const t = S.csqList.find(x => x.transcript_id === e.target.value); if (!t) return;
+    S.csq = t; S.pvs1Ans = { lofMech: null, relevantTx: true, critical: null, lofFrequent: false, nmdOverride: null, altStart: false, pathUpstreamOverride: null };
+    CRITERIA.forEach(c => { S.crit[c.code].user = false; });
+    renderAll(); await annotateTranscript();
+  });
+}
+function afterUserChange() { recompute(); }
+function setMode(m) {
+  S.mode = m; store.set('mode', m);
+  document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  recompute();
+}
+function exportJSON() {
+  return {
+    outil: 'Atelier ACMG', date: new Date().toISOString(), mode: S.mode, vcf_grch38: S.vcf,
+    gene: S.csq && S.csq.gene_symbol, transcrit: S.csq && { ensembl: S.csq.transcript_id, mane: S.csq.mane_select, hgvsc: S.csq.hgvsc, hgvsp: S.csq.hgvsp, consequences: S.csq.consequence_terms },
+    classification: { points: CORE.classifyPoints(appliedList()), acmg2015: CORE.classify2015(appliedList()) },
+    criteres: CRITERIA.filter(c => S.crit[c.code].on || S.props[c.code]).map(c => ({ code: c.code, nom: critName(c.code, c.def, S.crit[c.code].str), applique: S.crit[c.code].on, source: S.crit[c.code].user ? 'manuel' : 'auto', proposition: S.props[c.code] || null, note: S.crit[c.code].note })),
+    nmd: S.lof && S.lof.nmd ? { verdict: S.lof.nmd.verdict, explication: S.lof.nmd.why, ptc_c: S.lof.nmd.cpos, exon: S.lof.nmd.exonN, proteine_retiree: S.lof.removedFrac } : null,
+    pvs1: S.pvs1, gnomad: S.gnomad, clinvar_exact: S.clinvar && S.clinvar.exact, settings: Object.assign({}, S.settings, { ncbiKey: undefined, mdKey: undefined }), avertissements: warnings(appliedList())
+  };
+}
+
+/* ---------- Démarrage ---------- */
+applyTheme();
+document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === S.mode));
+$('#q').value = store.get('lastInput', '');
+bind();
+renderAll();
+})();
+
+</script>
+</body>
+</html>
